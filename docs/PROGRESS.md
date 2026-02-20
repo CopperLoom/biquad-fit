@@ -33,7 +33,7 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 |-----------|----------|--------|
 | **v0.1** | All unit tests passing, `applyFilters` + `optimize` (greedy) working | ✅ Complete |
 | **v0.2** | Golden files generated, integration tests within 0.5 dB RMSE | ⚠️ Complete with 1 known failure |
-| **v0.3** | npm package, ES+CJS dual build, TypeScript types, CI | ⬜ Pending |
+| **v0.3** | npm package, ES+CJS dual build, TypeScript types, CI | ✅ Complete |
 | **v1.0** | Differential evolution optimizer, full suite green, npm publish | ⬜ Pending |
 
 ---
@@ -203,4 +203,21 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 - Over tolerance by 0.003 dB — greedy optimizer falls just short of DE's result
 - Not a bug; expected consequence of algorithm difference. Resolves with DE optimizer at v1.0.
 
-## Next: v0.3 — Package + Build
+## v0.3 — Package + Build ✅
+
+**Completed:** 2026-02-21
+
+**What was done:**
+- Added `src/index.js` — public API entry point, exports all 7 functions
+- Dual build via esbuild: `dist/index.js` (ESM) and `dist/index.cjs` (CJS)
+- TypeScript declaration files generated from JSDoc via `tsc` → `dist/*.d.ts`
+- `package.json` updated: `exports` field, `files` whitelist, `version 0.3.0`, `build` script
+- CI: GitHub Actions workflow runs `npm run build` + `npm test` on push/PR to main
+- README rewritten for public consumption: installation, quick start, full API reference
+- Identity: git config, LICENSE, package.json author all updated to CopperLoom
+- `scripts/` moved to `tests/scripts/`; CLAUDE.md and `.envrc` added to `.gitignore`
+- Fresh repo created at `github.com/CopperLoom/biquad-fit` — single clean initial commit, no prior history
+
+**CI status:** 1 known failure (`blessing3 × bass_heavy × restricted`) — accepted, resolves at v1.0.
+
+## Next: v1.0 — Differential Evolution Optimizer + npm publish
