@@ -1,0 +1,28 @@
+{
+  "iem": "origin_s",
+  "target": "bass_heavy",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.1996,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3679.04,
+      "gain": -6.0,
+      "q": 1.4309
+    },
+    {
+      "type": "PK",
+      "freq": 2253.88,
+      "gain": -4.7113,
+      "q": 1.1096
+    },
+    {
+      "type": "PK",
+      "freq": 5790.08,
+      "gain": -3.6568,
+      "q": 1.557
+    }
+  ],
+  "rmse": 2.441666
+}

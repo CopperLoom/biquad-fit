@@ -1,0 +1,40 @@
+{
+  "iem": "zero2",
+  "target": "harman_ie_2019",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -5.214,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 40.2,
+      "gain": -3.8891,
+      "q": 0.591
+    },
+    {
+      "type": "PK",
+      "freq": 153.95,
+      "gain": -3.162,
+      "q": 0.5058
+    },
+    {
+      "type": "PK",
+      "freq": 5767.77,
+      "gain": 4.8488,
+      "q": 2.0533
+    },
+    {
+      "type": "PK",
+      "freq": 3203.52,
+      "gain": 2.8817,
+      "q": 1.3759
+    },
+    {
+      "type": "HSQ",
+      "freq": 1115.71,
+      "gain": -0.4867,
+      "q": 0.7
+    }
+  ],
+  "rmse": 1.036294
+}

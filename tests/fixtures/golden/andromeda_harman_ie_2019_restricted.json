@@ -1,0 +1,28 @@
+{
+  "iem": "andromeda",
+  "target": "harman_ie_2019",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -6.1407,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 198.95,
+      "gain": -5.8864,
+      "q": 1.0245
+    },
+    {
+      "type": "PK",
+      "freq": 3378.72,
+      "gain": 6.0,
+      "q": 1.1053
+    },
+    {
+      "type": "PK",
+      "freq": 411.84,
+      "gain": -3.4572,
+      "q": 1.1959
+    }
+  ],
+  "rmse": 2.748278
+}

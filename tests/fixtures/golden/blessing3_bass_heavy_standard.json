@@ -1,0 +1,40 @@
+{
+  "iem": "blessing3",
+  "target": "bass_heavy",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -3.62,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 510.18,
+      "gain": -0.445,
+      "q": 0.6894
+    },
+    {
+      "type": "PK",
+      "freq": 3635.4,
+      "gain": -10.6952,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 147.8,
+      "gain": 3.7192,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 880.46,
+      "gain": 0.7319,
+      "q": 1.697
+    },
+    {
+      "type": "HSQ",
+      "freq": 745.67,
+      "gain": 3.2616,
+      "q": 0.4165
+    }
+  ],
+  "rmse": 1.182798
+}

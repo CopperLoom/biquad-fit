@@ -1,0 +1,28 @@
+{
+  "iem": "origin_s",
+  "target": "diffuse_field",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.2,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 30.27,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 64.65,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 163.3,
+      "gain": -6.0,
+      "q": 1.0
+    }
+  ],
+  "rmse": 2.734924
+}

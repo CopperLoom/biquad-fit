@@ -1,0 +1,40 @@
+{
+  "iem": "origin_s",
+  "target": "bass_heavy",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -4.3862,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 24.19,
+      "gain": 2.4677,
+      "q": 0.7
+    },
+    {
+      "type": "PK",
+      "freq": 3479.97,
+      "gain": -8.9649,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 812.04,
+      "gain": 2.8266,
+      "q": 1.1378
+    },
+    {
+      "type": "PK",
+      "freq": 162.53,
+      "gain": -0.5816,
+      "q": 0.8574
+    },
+    {
+      "type": "HSQ",
+      "freq": 10000.0,
+      "gain": 4.247,
+      "q": 0.7
+    }
+  ],
+  "rmse": 1.995538
+}

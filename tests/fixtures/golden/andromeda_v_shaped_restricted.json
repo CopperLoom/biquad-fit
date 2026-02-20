@@ -1,0 +1,28 @@
+{
+  "iem": "andromeda",
+  "target": "v_shaped",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.1995,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 316.14,
+      "gain": -2.8202,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 2013.93,
+      "gain": -3.7308,
+      "q": 1.8531
+    },
+    {
+      "type": "PK",
+      "freq": 972.03,
+      "gain": 0.6991,
+      "q": 2.3478
+    }
+  ],
+  "rmse": 5.890793
+}

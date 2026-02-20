@@ -1,0 +1,40 @@
+{
+  "iem": "andromeda",
+  "target": "bass_heavy",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -6.4055,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 8861.67,
+      "gain": 0.2473,
+      "q": 0.6633
+    },
+    {
+      "type": "PK",
+      "freq": 5760.71,
+      "gain": -5.7745,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 859.48,
+      "gain": 1.4908,
+      "q": 3.0141
+    },
+    {
+      "type": "PK",
+      "freq": 287.06,
+      "gain": -2.7725,
+      "q": 0.5
+    },
+    {
+      "type": "HSQ",
+      "freq": 10000.0,
+      "gain": 6.3203,
+      "q": 0.667
+    }
+  ],
+  "rmse": 3.83809
+}

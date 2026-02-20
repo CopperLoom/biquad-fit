@@ -1,0 +1,28 @@
+{
+  "iem": "zero2",
+  "target": "bass_heavy",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -1.7978,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3361.41,
+      "gain": -6.0,
+      "q": 1.0196
+    },
+    {
+      "type": "PK",
+      "freq": 629.62,
+      "gain": 2.0934,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 1968.39,
+      "gain": -2.7928,
+      "q": 1.006
+    }
+  ],
+  "rmse": 4.016382
+}

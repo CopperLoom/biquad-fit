@@ -1,0 +1,40 @@
+{
+  "iem": "blessing3",
+  "target": "bright",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -6.323,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 43.91,
+      "gain": -6.4688,
+      "q": 0.7
+    },
+    {
+      "type": "PK",
+      "freq": 3148.08,
+      "gain": -6.8924,
+      "q": 0.7639
+    },
+    {
+      "type": "PK",
+      "freq": 63.88,
+      "gain": -3.3767,
+      "q": 0.7721
+    },
+    {
+      "type": "PK",
+      "freq": 649.08,
+      "gain": 1.252,
+      "q": 0.5
+    },
+    {
+      "type": "HSQ",
+      "freq": 8530.84,
+      "gain": 6.1394,
+      "q": 0.7
+    }
+  ],
+  "rmse": 1.188311
+}

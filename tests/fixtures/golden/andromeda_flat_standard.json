@@ -1,0 +1,40 @@
+{
+  "iem": "andromeda",
+  "target": "flat",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -6.9774,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 216.09,
+      "gain": -5.1872,
+      "q": 0.7
+    },
+    {
+      "type": "PK",
+      "freq": 302.95,
+      "gain": -3.2162,
+      "q": 0.9007
+    },
+    {
+      "type": "PK",
+      "freq": 6824.77,
+      "gain": -6.1768,
+      "q": 0.7466
+    },
+    {
+      "type": "PK",
+      "freq": 2053.71,
+      "gain": -3.7252,
+      "q": 2.3872
+    },
+    {
+      "type": "HSQ",
+      "freq": 10000.0,
+      "gain": 6.9185,
+      "q": 0.5609
+    }
+  ],
+  "rmse": 3.744207
+}

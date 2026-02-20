@@ -1,0 +1,28 @@
+{
+  "iem": "blessing3",
+  "target": "bass_heavy",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -4.1502,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3407.37,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 128.78,
+      "gain": 3.6183,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 315.01,
+      "gain": 1.7068,
+      "q": 1.0
+    }
+  ],
+  "rmse": 1.75308
+}

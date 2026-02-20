@@ -1,0 +1,28 @@
+{
+  "iem": "blessing3",
+  "target": "harman_ie_2019",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -3.1843,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3443.08,
+      "gain": 2.4954,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 41.24,
+      "gain": 2.9999,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 353.45,
+      "gain": -1.1336,
+      "q": 1.0271
+    }
+  ],
+  "rmse": 2.579035
+}

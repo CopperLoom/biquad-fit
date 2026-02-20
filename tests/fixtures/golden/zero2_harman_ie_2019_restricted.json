@@ -1,0 +1,28 @@
+{
+  "iem": "zero2",
+  "target": "harman_ie_2019",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -4.8742,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 5529.38,
+      "gain": 5.0774,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 121.56,
+      "gain": -4.5672,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 9188.73,
+      "gain": -2.3422,
+      "q": 1.6553
+    }
+  ],
+  "rmse": 1.598698
+}

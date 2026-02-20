@@ -1,0 +1,40 @@
+{
+  "iem": "origin_s",
+  "target": "flat",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -4.7258,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 65.39,
+      "gain": -3.832,
+      "q": 0.7
+    },
+    {
+      "type": "PK",
+      "freq": 3533.88,
+      "gain": -8.8178,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 110.09,
+      "gain": -4.4245,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 809.63,
+      "gain": 2.9743,
+      "q": 1.1601
+    },
+    {
+      "type": "HSQ",
+      "freq": 10000.0,
+      "gain": 4.6045,
+      "q": 0.633
+    }
+  ],
+  "rmse": 1.988914
+}

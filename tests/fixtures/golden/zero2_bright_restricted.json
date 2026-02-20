@@ -1,0 +1,28 @@
+{
+  "iem": "zero2",
+  "target": "bright",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.9033,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 2699.75,
+      "gain": -6.0,
+      "q": 1.1605
+    },
+    {
+      "type": "PK",
+      "freq": 820.21,
+      "gain": 1.3037,
+      "q": 1.3673
+    },
+    {
+      "type": "PK",
+      "freq": 1584.29,
+      "gain": -1.0486,
+      "q": 1.5741
+    }
+  ],
+  "rmse": 6.909564
+}

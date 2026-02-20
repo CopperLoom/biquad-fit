@@ -1,0 +1,40 @@
+{
+  "iem": "hexa",
+  "target": "v_shaped",
+  "constraint": "standard",
+  "fs": 44100,
+  "pregain": -6.6581,
+  "filters": [
+    {
+      "type": "LSQ",
+      "freq": 36.66,
+      "gain": -2.3948,
+      "q": 0.6888
+    },
+    {
+      "type": "PK",
+      "freq": 3071.06,
+      "gain": -6.0284,
+      "q": 1.8051
+    },
+    {
+      "type": "PK",
+      "freq": 123.95,
+      "gain": 2.3619,
+      "q": 0.5
+    },
+    {
+      "type": "PK",
+      "freq": 1594.93,
+      "gain": -1.5274,
+      "q": 2.0852
+    },
+    {
+      "type": "HSQ",
+      "freq": 10000.0,
+      "gain": 6.4638,
+      "q": 0.7
+    }
+  ],
+  "rmse": 1.648695
+}

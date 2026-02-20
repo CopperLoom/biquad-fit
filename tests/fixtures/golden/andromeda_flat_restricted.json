@@ -1,0 +1,28 @@
+{
+  "iem": "andromeda",
+  "target": "flat",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.1859,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 42.48,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 174.48,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 4736.56,
+      "gain": -4.9978,
+      "q": 1.0
+    }
+  ],
+  "rmse": 4.984782
+}

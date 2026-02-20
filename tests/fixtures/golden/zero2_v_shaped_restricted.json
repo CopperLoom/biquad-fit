@@ -1,0 +1,28 @@
+{
+  "iem": "zero2",
+  "target": "v_shaped",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -1.3181,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 2435.99,
+      "gain": -5.6562,
+      "q": 1.215
+    },
+    {
+      "type": "PK",
+      "freq": 603.85,
+      "gain": 1.2357,
+      "q": 1.2766
+    },
+    {
+      "type": "PK",
+      "freq": 261.2,
+      "gain": 0.9593,
+      "q": 1.3786
+    }
+  ],
+  "rmse": 5.14593
+}

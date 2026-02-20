@@ -1,0 +1,28 @@
+{
+  "iem": "andromeda",
+  "target": "diffuse_field",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -6.1883,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 45.06,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 148.28,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 3926.03,
+      "gain": 6.0,
+      "q": 1.0
+    }
+  ],
+  "rmse": 5.519558
+}

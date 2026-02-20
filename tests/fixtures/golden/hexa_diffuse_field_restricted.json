@@ -1,0 +1,28 @@
+{
+  "iem": "hexa",
+  "target": "diffuse_field",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -5.9443,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 10000.0,
+      "gain": 5.3368,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 3325.85,
+      "gain": 4.6029,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 1287.55,
+      "gain": -1.278,
+      "q": 3.1803
+    }
+  ],
+  "rmse": 5.478768
+}

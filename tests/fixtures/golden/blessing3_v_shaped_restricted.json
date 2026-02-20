@@ -1,0 +1,28 @@
+{
+  "iem": "blessing3",
+  "target": "v_shaped",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -4.8966,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 121.2,
+      "gain": 4.3004,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 2868.32,
+      "gain": -6.0,
+      "q": 1.2778
+    },
+    {
+      "type": "PK",
+      "freq": 289.11,
+      "gain": 1.9047,
+      "q": 1.0
+    }
+  ],
+  "rmse": 2.637222
+}

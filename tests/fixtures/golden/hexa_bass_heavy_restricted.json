@@ -1,0 +1,28 @@
+{
+  "iem": "hexa",
+  "target": "bass_heavy",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -2.2412,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3127.24,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 150.38,
+      "gain": 2.0561,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 6987.83,
+      "gain": -3.3891,
+      "q": 2.2828
+    }
+  ],
+  "rmse": 1.981597
+}

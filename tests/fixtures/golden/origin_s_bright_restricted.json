@@ -1,0 +1,28 @@
+{
+  "iem": "origin_s",
+  "target": "bright",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.1933,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 3021.44,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 34.51,
+      "gain": -6.0,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 108.96,
+      "gain": -6.0,
+      "q": 1.0
+    }
+  ],
+  "rmse": 3.371215
+}

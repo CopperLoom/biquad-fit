@@ -1,0 +1,28 @@
+{
+  "iem": "andromeda",
+  "target": "bass_heavy",
+  "constraint": "restricted",
+  "fs": 44100,
+  "pregain": -0.1914,
+  "filters": [
+    {
+      "type": "PK",
+      "freq": 6001.87,
+      "gain": -5.8462,
+      "q": 1.9454
+    },
+    {
+      "type": "PK",
+      "freq": 261.74,
+      "gain": -3.0701,
+      "q": 1.0
+    },
+    {
+      "type": "PK",
+      "freq": 2183.97,
+      "gain": -4.2848,
+      "q": 1.509
+    }
+  ],
+  "rmse": 4.785945
+}
