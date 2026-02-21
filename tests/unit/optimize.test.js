@@ -214,7 +214,8 @@ describe('optimize: filterSpecs API', () => {
 describe('optimize: correctness', () => {
 
   test('no-error input: corrected FR RMSE is near 0', () => {
-    const fr     = bumpFR(1000, 3); // same for measured and target
+    // Use flat FR — centering has no effect on flat, so error is truly zero
+    const fr     = flatFR();
     const result = optimize(fr, fr, STANDARD);
     const corrected = applyFilters(
       interpolate(fr, GRID),
@@ -226,20 +227,27 @@ describe('optimize: correctness', () => {
     expect(Math.sqrt(mse)).toBeLessThan(0.5);
   });
 
-  test('single prominent bump: optimizer reduces RMSE vs doing nothing', () => {
-    const measured = bumpFR(1000, 8);
+  test('off-center bump: optimizer reduces RMSE vs doing nothing', () => {
+    // Bump at 3 kHz — after centering at 1 kHz (offset ≈ 0), the bump remains.
+    // The optimizer should cut the bump to reduce RMSE.
+    const measured = bumpFR(3000, 6);
     const target   = flatFR();
     const result   = optimize(measured, target, STANDARD);
 
+    // Center measured at 1 kHz (matching pipeline)
     const measInterp   = interpolate(measured, GRID);
+    const ix1k = measInterp.findIndex(pt => pt.freq >= 1000);
+    const offset = measInterp[ix1k].db;
+    const measCentered = measInterp.map(pt => ({ freq: pt.freq, db: pt.db - offset }));
     const targetInterp = interpolate(target, GRID);
-    const corrected    = applyFilters(measInterp, result.filters, result.pregain);
+    // Use pregain=0 for RMSE comparison (pregain is for device clipping prevention)
+    const corrected    = applyFilters(measCentered, result.filters, 0);
 
     function rmse(a, b) {
       return Math.sqrt(a.reduce((s, pt, i) => s + (pt.db - b[i].db) ** 2, 0) / a.length);
     }
 
-    const rmseRaw       = rmse(measInterp, targetInterp);
+    const rmseRaw       = rmse(measCentered, targetInterp);
     const rmseCorrected = rmse(corrected, targetInterp);
     expect(rmseCorrected).toBeLessThan(rmseRaw);
   });
