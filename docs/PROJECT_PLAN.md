@@ -287,7 +287,8 @@ TDD means tests come first. Implementation order follows test dependencies:
 | **v0.1** | All unit tests passing. `applyFilters` and `optimize` (greedy) working. |
 | **v0.2** | Golden files generated. Integration tests passing within 0.5 dB RMSE tolerance. |
 | **v0.3** | npm package structure, ES + CJS dual build, TypeScript types, CI on GitHub Actions |
-| **v1.0** | Shelf filter support (`filterSpecs` API) + joint local optimizer matching AutoEQ's SLSQP approach, full test suite green (all 90 combinations, 0 skipped), published to npm |
+| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer faithful to AutoEQ's `fmin_slsqp` (gradient-based quasi-Newton, finite-difference gradients, STD convergence), full test suite green (all 90 combinations, 0 skipped), published to npm |
+| **v1.1** | Simplification pass: try removing slope limiting / using smooth-inverse directly; keep simpler form if all 90 RMSE tests still pass |
 
 ### v1.0 Design Notes — Read before writing code
 
@@ -305,6 +306,29 @@ TDD means tests come first. Implementation order follows test dependencies:
 
 - We cannot use scipy. We need a zero-dependency JS equivalent.
 - The algorithm is a **local optimizer** starting from a **good initialization** — not a global search. Global behavior comes from the initialization, not the optimizer.
-- The critical missing piece in our v1 greedy optimizer is **joint optimization**: we optimize filters sequentially and never go back to refine earlier filters given later ones. AutoEQ optimizes all parameters simultaneously after initialization.
-- A faithful JS equivalent: keep the greedy sequential initialization (we already have this), then run a joint optimizer over all parameters with STD-based convergence stopping.
-- **Read `peq.py` before designing the implementation.** Do not infer from this summary alone.
+- The critical missing piece is **joint optimization**: all parameters must be updated simultaneously using gradient information, matching SLSQP's behavior. Coordinate descent (one param at a time) was attempted and failed — it gets stuck in local minima for ≥10 filters.
+
+**Joint optimizer: required process before writing code**
+
+1. Read `peq.py` `_optimizer_loss()` and the `fmin_slsqp` call in full ✅
+2. Read scipy `fmin_slsqp` documentation for parameter semantics (bounds format, fprime, iter, acc) ✅
+3. Write a technical specification: inputs, outputs, convergence criterion, how bounds are enforced, what "simultaneous update" means mechanically in a zero-dependency JS context ✅ (`docs/joint-optimizer-spec.md`)
+4. Get sign-off on the spec before writing any implementation code ✅
+
+**Implementation plan (after sign-off):**
+
+1. Implement full `equalize()` with dual-direction slope limiting (including region validation, protection mask, RTL start), gain cap, and re-smoothing — faithful to AutoEQ oracle
+2. Implement JS equivalent of `fmin_slsqp`: L-BFGS quasi-Newton with forward finite-difference gradients (h = √ε ≈ 1.49e-8, matching scipy), Armijo line search, gradient projection for bounds, and STD-based convergence
+3. Wire into `optimize()` — loss always computed over [20, 20000] Hz (hardcoded, not freqRange); all 90 integration tests must pass, 0 skipped
+
+**Corrections applied during spec review (2026-02-21):**
+- Loss `minIx` hardcoded to 20 Hz (was incorrectly using `freqRange[0]`)
+- `MAX_JOINT_ITER` updated from 120 → 150 (scipy default)
+- Old-API PK Q default updated from [0.5, 10] → [0.18, 6.0] (AutoEQ defaults)
+- Slope limiter spec expanded: region validation, `protectionMask()`, `findRtlStart()` algorithms added
+- Finite-difference scheme changed from central (h=1e-4) to forward (h=√ε ≈ 1.49e-8, matching scipy SLSQP)
+- Peak width computation: use interpolated half-height positions (matching scipy `find_peaks`)
+
+**Ruled-out approaches:** coordinate descent (local minima for ≥10 filters); Differential Evolution (not what AutoEQ uses).
+
+**Known-bad approach:** coordinate descent (golden section search per parameter, cycling through filters). Do not reimplement this — it was tried and produced 2/90 integration test failures due to local minima.

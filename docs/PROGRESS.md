@@ -15,15 +15,13 @@
 | `compensate.js` | ✅ | ✅ 9/9 | ✅ | |
 | `smooth.js` | ✅ | ✅ 9/9 | ✅ | |
 | `equalize.js` | ✅ | ✅ 8/8 | ✅ | |
-| `optimize.js` | ✅ | ✅ 13/13 | ✅ | Greedy v1 |
+| `optimize.js` | ✅ | ✅ 19/19 unit | ⬜ stub | filterSpecs API + loss fn correct; `optimize()` throws pending joint impl |
 | Golden file generation | ✅ | — | ✅ | 90 files (5 IEMs × 6 targets × 3 constraints) |
 | Integration tests | ✅ | ⚠️ see note | ✅ | 119/120 pass, 60 skipped, 1 known failure |
 
 **Total unit tests: 87/87 passing**
 
-**Integration tests: 119/120 passing, 60 skipped (v2), 1 known failure (v2)**
-
-Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds AutoEq's by 0.003 dB (2.256 vs tolerance ceiling of 2.253). Root cause: greedy sequential optimizer vs AutoEq's joint SLSQP optimizer. AutoEq uses `scipy.optimize.fmin_slsqp` — a gradient-based local optimizer that jointly optimizes all filter parameters simultaneously, with STD-based convergence stopping. Our greedy optimizer is sequential and local, falling just short on this hard case. Will resolve at v1.0 with a joint local optimizer.
+**Integration tests: 0/273 passing** — `optimize()` is currently a stub (throws "not implemented"). All integration tests blocked pending joint optimizer implementation.
 
 ---
 
@@ -34,7 +32,7 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 | **v0.1** | All unit tests passing, `applyFilters` + `optimize` (greedy) working | ✅ Complete |
 | **v0.2** | Golden files generated, integration tests within 0.5 dB RMSE | ⚠️ Complete with 1 known failure |
 | **v0.3** | npm package, ES+CJS dual build, TypeScript types, CI | ✅ Complete |
-| **v1.0** | Differential evolution optimizer, full suite green, npm publish | ⬜ Pending |
+| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer (JS equivalent of `fmin_slsqp`), all 273 tests green, npm publish | ⬜ Pending |
 
 ---
 
@@ -196,12 +194,7 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 **Test structure:**
 - **Structural checks (90 tests, all pass):** filter count ≤ maxFilters, all gains/Q/freq within bounds
 - **RMSE checks — restricted only (30 tests, 29 pass):** both biquad-fit and AutoEq use all-PK for this constraint set, making the comparison meaningful; tolerance = 0.5 dB
-- **RMSE checks — standard + qudelix_10 (60 tests, skipped):** AutoEq uses LSQ+PK+HSQ; biquad-fit v1 is PK-only, gap routinely exceeds 0.5 dB; deferred to v1.0 (DE optimizer)
-
-**Known failure:** `blessing3 × bass_heavy × restricted`
-- Our RMSE: 2.256 dB | AutoEq RMSE: 1.753 dB | ceiling: 2.253 dB
-- Over tolerance by 0.003 dB — greedy optimizer falls just short of DE's result
-- Not a bug; expected consequence of algorithm difference. Resolves with DE optimizer at v1.0.
+- **RMSE checks — standard + qudelix_10 (60 tests, skipped in v0.2):** AutoEq uses LSQ+PK+HSQ; biquad-fit v1 was PK-only. All 180 RMSE checks are now active with v1.0 filterSpecs API — all blocked on joint optimizer implementation.
 
 ## v0.3 — Package + Build ✅
 
@@ -220,4 +213,10 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 
 **CI status:** 1 known failure (`blessing3 × bass_heavy × restricted`) — accepted, resolves at v1.0.
 
-## Next: v1.0 — Joint Local Optimizer + npm publish
+## Next: v1.0 — Full `equalize()` + Joint Optimizer + npm publish
+
+Spec: `docs/joint-optimizer-spec.md`
+
+1. Rewrite `equalize.js` — full AutoEq-faithful equalization curve (dual-direction slope limiting, +6 dB gain cap, re-smoothing)
+2. Implement joint optimizer in `optimize.js` — JS equivalent of `fmin_slsqp`: finite-difference gradients, BFGS quasi-Newton, STD-based convergence, best-params restoration
+3. All 273 tests green, 0 skipped → npm publish

@@ -144,28 +144,67 @@ describe('optimize: constraint enforcement', () => {
 
 });
 
-// ─── 3.7.3 Mixed filter types (v2) ───────────────────────────────────────────
-//
-// SKIP until v2 (differential evolution optimizer).
-// When v2 lands:
-//   1. Remove test.skip → test
-//   2. Update scripts/compare.js AutoEQ config to use LSQ+PK+HSQ (see TODO there)
+// ─── 3.7.3 filterSpecs API ───────────────────────────────────────────────────
 
-describe('optimize: mixed filter types (v2)', () => {
+describe('optimize: filterSpecs API', () => {
 
-  test.skip('uses LSQ for strong low-frequency shelf error', () => {
-    // Bass-boosted measured vs flat target — a LOW_SHELF is the natural fit.
-    // v1 greedy (PK-only) cannot produce LSQ; v2 (DE) should.
+  test('accepts filterSpecs array and returns one filter per spec', () => {
+    const filterSpecs = [
+      { type: 'LSQ', gainRange: [-12, 12] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+      { type: 'HSQ', gainRange: [-12, 12] },
+    ];
+    const result = optimize(bumpFR(1000, 6), flatFR(), { filterSpecs, freqRange: [20, 10000] });
+    expect(result.filters.length).toBe(4);
+  });
+
+  test('filterSpecs types are preserved in output', () => {
+    const filterSpecs = [
+      { type: 'LSQ', gainRange: [-12, 12] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+      { type: 'HSQ', gainRange: [-12, 12] },
+    ];
+    const result = optimize(bumpFR(1000, 6), flatFR(), { filterSpecs, freqRange: [20, 10000] });
+    expect(result.filters[0].type).toBe('LSQ');
+    expect(result.filters[1].type).toBe('PK');
+    expect(result.filters[2].type).toBe('HSQ');
+  });
+
+  test('filterSpecs gainRange is respected per filter', () => {
+    const filterSpecs = [
+      { type: 'LSQ', gainRange: [-6, 6] },
+      { type: 'PK',  gainRange: [-3, 3], qRange: [0.5, 10] },
+    ];
+    const result = optimize(bumpFR(500, 10), flatFR(), { filterSpecs, freqRange: [20, 10000] });
+    expect(result.filters[0].gain).toBeGreaterThanOrEqual(-6);
+    expect(result.filters[0].gain).toBeLessThanOrEqual(6);
+    expect(result.filters[1].gain).toBeGreaterThanOrEqual(-3);
+    expect(result.filters[1].gain).toBeLessThanOrEqual(3);
+  });
+
+  test('uses LSQ for strong low-frequency shelf error', () => {
+    // Bass-boosted IEM vs flat target: a LOW_SHELF is the natural fit.
     const measured = interpolate([
       { freq: 20,    db: 8 },
       { freq: 200,   db: 4 },
       { freq: 1000,  db: 0 },
       { freq: 20000, db: 0 },
     ], GRID);
-    const target = flatFR();
-    const result = optimize(measured, target, STANDARD);
-    const hasShelf = result.filters.some(f => f.type === 'LSQ' || f.type === 'HSQ');
+    const filterSpecs = [
+      { type: 'LSQ', gainRange: [-12, 12] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+    ];
+    const result = optimize(measured, flatFR(), { filterSpecs, freqRange: [20, 10000] });
+    const hasShelf = result.filters.some(f => f.type === 'LSQ');
     expect(hasShelf).toBe(true);
+  });
+
+  test('old API still works (all-PK, backward compat)', () => {
+    const result = optimize(bumpFR(1000, 6), flatFR(), STANDARD);
+    expect(result.filters.length).toBeGreaterThan(0);
+    result.filters.forEach(f => expect(f.type).toBe('PK'));
   });
 
 });
@@ -203,6 +242,32 @@ describe('optimize: correctness', () => {
     const rmseRaw       = rmse(measInterp, targetInterp);
     const rmseCorrected = rmse(corrected, targetInterp);
     expect(rmseCorrected).toBeLessThan(rmseRaw);
+  });
+
+  test('shelf + PK filterSpecs: corrected RMSE better than doing nothing', () => {
+    const measured = interpolate([
+      { freq: 20,    db: 8 },
+      { freq: 200,   db: 4 },
+      { freq: 1000,  db: 0 },
+      { freq: 5000,  db: 3 },
+      { freq: 20000, db: 0 },
+    ], GRID);
+    const target = flatFR();
+    const filterSpecs = [
+      { type: 'LSQ', gainRange: [-12, 12] },
+      { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+      { type: 'HSQ', gainRange: [-12, 12] },
+    ];
+    const result = optimize(measured, target, { filterSpecs, freqRange: [20, 10000] });
+
+    const measInterp   = interpolate(measured, GRID);
+    const targetInterp = interpolate(target, GRID);
+    const corrected    = applyFilters(measInterp, result.filters, 0);
+
+    function rmse(a, b) {
+      return Math.sqrt(a.reduce((s, pt, i) => s + (pt.db - b[i].db) ** 2, 0) / a.length);
+    }
+    expect(rmse(corrected, targetInterp)).toBeLessThan(rmse(measInterp, targetInterp));
   });
 
 });
