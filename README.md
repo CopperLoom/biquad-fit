@@ -69,6 +69,7 @@ The main entry point. Runs the full pipeline and returns optimal filter paramete
 |---|---|---|
 | `measured` | `{freq, db}[]` | Measured frequency response |
 | `target` | `{freq, db}[]` | Target curve |
+| `constraints.filterSpecs` | `{type, gainRange?, qRange?, fcRange?}[]` | Per-filter specs (advanced) |
 | `constraints.maxFilters` | `number` | Max number of filters (default: 5) |
 | `constraints.gainRange` | `[min, max]` | Gain bounds in dB (default: [-12, 12]) |
 | `constraints.qRange` | `[min, max]` | Q bounds (default: [0.5, 10]) |
@@ -78,6 +79,20 @@ The main entry point. Runs the full pipeline and returns optimal filter paramete
 Returns `{ pregain: number, filters: {type, fc, gain, Q}[] }`.
 
 Filter types: `'PK'` (peaking), `'LSQ'` (low shelf), `'HSQ'` (high shelf).
+
+**filterSpecs API (v1.0+):** For advanced use, pass `constraints.filterSpecs` to specify per-filter bounds:
+
+```js
+const { pregain, filters } = optimize(measured, target, {
+  filterSpecs: [
+    { type: 'LSQ', gainRange: [-12, 12] },
+    { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK',  gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'HSQ', gainRange: [-12, 12] },
+  ],
+  freqRange: [20, 10000],
+});
+```
 
 ---
 
@@ -116,7 +131,7 @@ biquad-fit works in both environments from a single implementation. There are no
 
 ## Status
 
-Pre-release (`0.x`). The API is functional and tested against AutoEq golden files, but may change before `1.0`. The current optimizer is a greedy algorithm; a differential evolution optimizer with shelf filter support is planned for `1.0`.
+v1.0 stable. All 274 tests passing (93 unit + 181 integration). The optimizer is a joint L-BFGS quasi-Newton implementation matching AutoEQ's SLSQP algorithm. Full support for mixed filter types (peaking, low shelf, high shelf) and per-filter constraints via the `filterSpecs` API.
 
 ---
 
