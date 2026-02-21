@@ -1,7 +1,7 @@
 # biquad-fit: Project Plan
 
-> **Status:** v0.1 complete — all unit tests passing (87/87), greedy optimizer implemented
-> **Date:** 2026-02-18 · **Last updated:** 2026-02-19
+> **Status:** v1.0 complete — all tests passing (274/274), joint optimizer + visualization tool
+> **Date:** 2026-02-18 · **Last updated:** 2026-02-22
 
 ---
 
@@ -257,6 +257,18 @@ Flags: `--bands N`, `--gain G` (±dB), `--q-min Q`, `--q-max Q`, `--freq-min F`,
 
 **Note on filter types:** both engines currently use all-PK filters. When the v2 DE optimizer adds LSQ/HSQ support, update `buildAutoeqConfig()` in `compare.js` to use mixed types — there is a TODO comment there and a `test.skip` in `tests/unit/optimize.test.js` as reminders.
 
+### Visual Comparison Tool
+
+`tests/scripts/visualize.js` generates a self-contained HTML file with side-by-side Canvas charts comparing AutoEQ (golden reference) vs biquad-fit corrected FR curves. Useful for catching visual issues that RMSE numbers alone can't show.
+
+```bash
+node tests/scripts/visualize.js [iem] [target] [constraint]
+node tests/scripts/visualize.js origin_s diffuse_field qudelix_10
+node tests/scripts/visualize.js -h
+```
+
+Defaults to `blessing3 harman_ie_2019 qudelix_10`. Output written to `tests/scripts/output/comparison.html` (gitignored) and opened in the default browser.
+
 ### Test Runner
 
 **Vitest** — fast, ES module native, no config overhead, works in Node.js.
@@ -284,11 +296,11 @@ TDD means tests come first. Implementation order follows test dependencies:
 
 | Milestone | Definition of done |
 |---|---|
-| **v0.1** | All unit tests passing. `applyFilters` and `optimize` (greedy) working. |
-| **v0.2** | Golden files generated. Integration tests passing within 0.5 dB RMSE tolerance. |
-| **v0.3** | npm package structure, ES + CJS dual build, TypeScript types, CI on GitHub Actions |
-| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer faithful to AutoEQ's `fmin_slsqp` (gradient-based quasi-Newton, finite-difference gradients, STD convergence), full test suite green (all 90 combinations, 0 skipped), published to npm |
-| **v1.1** | Simplification pass: try removing slope limiting / using smooth-inverse directly; keep simpler form if all 90 RMSE tests still pass |
+| **v0.1** | All unit tests passing. `applyFilters` and `optimize` (greedy) working. | ✅ |
+| **v0.2** | Golden files generated. Integration tests passing within 0.5 dB RMSE tolerance. | ✅ |
+| **v0.3** | npm package structure, ES + CJS dual build, TypeScript types, CI on GitHub Actions | ✅ |
+| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer faithful to AutoEQ's `fmin_slsqp`, all 274 tests green (0 skipped) | ✅ |
+| **v1.1** | Simplification pass: try removing slope limiting / using smooth-inverse directly; keep simpler form if all 90 RMSE tests still pass | ⬜ |
 
 ### v1.0 Design Notes — Read before writing code
 

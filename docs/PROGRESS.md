@@ -15,13 +15,14 @@
 | `compensate.js` | ✅ | ✅ 9/9 | ✅ | |
 | `smooth.js` | ✅ | ✅ 9/9 | ✅ | |
 | `equalize.js` | ✅ | ✅ 8/8 | ✅ | |
-| `optimize.js` | ✅ | ✅ 19/19 unit | ⬜ stub | filterSpecs API + loss fn correct; `optimize()` throws pending joint impl |
+| `optimize.js` | ✅ | ✅ 19/19 unit | ✅ | Joint L-BFGS optimizer, filterSpecs API, shelf init, sharpness penalty |
 | Golden file generation | ✅ | — | ✅ | 90 files (5 IEMs × 6 targets × 3 constraints) |
-| Integration tests | ✅ | ⚠️ see note | ✅ | 119/120 pass, 60 skipped, 1 known failure |
+| Integration tests | ✅ | ✅ 274/274 | ✅ | All 90 combinations pass, 0 skipped |
+| `visualize.js` | — | — | ✅ | Side-by-side AutoEQ vs biquad-fit Canvas charts |
 
-**Total unit tests: 87/87 passing**
+**Total unit tests: 93/93 passing**
 
-**Integration tests: 0/273 passing** — `optimize()` is currently a stub (throws "not implemented"). All integration tests blocked pending joint optimizer implementation.
+**Integration tests: 274/274 passing** — all 90 IEM × target × constraint combinations within 0.5 dB RMSE of AutoEQ.
 
 ---
 
@@ -32,7 +33,7 @@
 | **v0.1** | All unit tests passing, `applyFilters` + `optimize` (greedy) working | ✅ Complete |
 | **v0.2** | Golden files generated, integration tests within 0.5 dB RMSE | ⚠️ Complete with 1 known failure |
 | **v0.3** | npm package, ES+CJS dual build, TypeScript types, CI | ✅ Complete |
-| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer (JS equivalent of `fmin_slsqp`), all 273 tests green, npm publish | ⬜ Pending |
+| **v1.0** | Full `equalize()` (slope limiting + gain cap) + joint optimizer (JS equivalent of `fmin_slsqp`), all 274 tests green | ✅ Complete |
 
 ---
 
@@ -155,29 +156,28 @@
 
 ### `src/optimize.js` ✅
 
-**Completed:** 2026-02-19
+**Completed:** 2026-02-22 (v1.0 joint optimizer)
 
-**What it does:** Greedy sequential PEQ optimizer (v1). Finds optimal filter parameters to minimize the RMSE between a corrected FR and a target curve.
+**What it does:** Joint parametric EQ optimizer matching AutoEQ's SLSQP approach. Finds optimal filter parameters to minimize RMSE between a corrected FR and a target curve.
 
 **Algorithm:**
-1. Compute error curve via `compensate`
-2. For each filter slot:
-   - Find frequency of maximum absolute residual error within `freqRange`
-   - Initialize a PK filter at that frequency with gain = −residual (correction, not match)
-   - Optimize (fc, gain, Q) via coordinate descent + golden section search
-   - Update residual: `new_residual = old_residual + filter_response`
-3. Compute pregain as negative of maximum positive filter boost
+1. Resolve filterSpecs (new API) or expand maxFilters+gainRange+qRange (old API)
+2. Interpolate to pipeline grid (1.01), center, compute error, equalize
+3. Interpolate equalization to optimizer grid (1.02)
+4. Sequential initialization: HSQ → LSQ → PK, each against remaining correction
+5. Joint L-BFGS optimization over all filter params simultaneously, with STD-based convergence (mirrors AutoEQ's SLSQP behavior)
+6. Compute pregain
 
 **Implementation:**
-- `goldenSearch(f, lo, hi, logScale)` — 1D unimodal minimizer, log-scale option for frequency
-- `filterRMSE(...)` — RMSE between filter response and correction target
-- `optimizeSingleFilter(...)` — 6 rounds of coordinate descent over fc, gain, Q
-- `computePregain(...)` — prevents corrected signal from boosting above original
+- `resolveSpecs(constraints)` — normalize filterSpecs / old API to uniform format
+- `sharpnessPenalty(...)` — sigmoid penalty for overly sharp PK filters (matching AutoEQ)
+- `initializeFilters(...)` — sequential HSQ → LSQ → PK init against remaining residual
+- `lbfgsOptimize(...)` — L-BFGS quasi-Newton with forward finite-difference gradients, Armijo line search, gradient projection for bounds, STD-based convergence
 - `optimize(measured, target, constraints)` — public export
 
-**Test file:** `tests/unit/optimize.test.js` — **13/13 passed**
+**Test file:** `tests/unit/optimize.test.js` — **19/19 passed**
 
-**Bug caught during development:** Initial implementation fit filters to match the residual (wrong direction) instead of cancel it. Fix: pass `-residual` as the optimizer target and add (not subtract) the filter response when updating the residual.
+**Historical note:** v0.1 used greedy coordinate descent (golden section per parameter). This was replaced in v1.0 because coordinate descent gets stuck in local minima for ≥10 filters.
 
 ---
 
@@ -213,10 +213,30 @@
 
 **CI status:** 1 known failure (`blessing3 × bass_heavy × restricted`) — accepted, resolves at v1.0.
 
-## Next: v1.0 — Full `equalize()` + Joint Optimizer + npm publish
+## v1.0 — Full `equalize()` + Joint Optimizer ✅
 
-Spec: `docs/joint-optimizer-spec.md`
+**Completed:** 2026-02-22
 
-1. Rewrite `equalize.js` — full AutoEq-faithful equalization curve (dual-direction slope limiting, +6 dB gain cap, re-smoothing)
-2. Implement joint optimizer in `optimize.js` — JS equivalent of `fmin_slsqp`: finite-difference gradients, BFGS quasi-Newton, STD-based convergence, best-params restoration
-3. All 273 tests green, 0 skipped → npm publish
+**What was done:**
+- Rewrote `equalize.js` — full AutoEq-faithful equalization: dual-direction slope limiting, +6 dB gain cap, two-zone smoothing (1/12 oct below 6 kHz, 2 oct above 8 kHz, sigmoid blend), re-smoothing
+- Rewrote `smooth.js` — added two-zone smoothing support (sigmoid crossfade between low/high octave windows)
+- Implemented joint optimizer in `optimize.js` — L-BFGS quasi-Newton with forward finite-difference gradients (h = √ε), Armijo line search, gradient projection for bounds, STD-based convergence (window=8, min_std=0.002)
+- filterSpecs API: supports mixed filter types (LSQ + PK + HSQ) with per-filter bounds
+- All 274 tests pass (93 unit + 181 integration), 0 skipped
+
+**Spec:** `docs/joint-optimizer-spec.md`
+
+### `tests/scripts/visualize.js` ✅
+
+**Completed:** 2026-02-22
+
+**What it does:** Generates a self-contained HTML file with side-by-side Canvas charts comparing AutoEQ (golden reference) vs biquad-fit results. Shows measured FR, target curve, and corrected FR on each panel with RMSE annotations and filter tables.
+
+**Usage:**
+```bash
+node tests/scripts/visualize.js [iem] [target] [constraint]
+node tests/scripts/visualize.js origin_s diffuse_field qudelix_10
+node tests/scripts/visualize.js -h
+```
+
+## Next: npm publish + v1.1 simplification pass
