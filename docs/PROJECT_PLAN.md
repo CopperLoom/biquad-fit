@@ -287,4 +287,24 @@ TDD means tests come first. Implementation order follows test dependencies:
 | **v0.1** | All unit tests passing. `applyFilters` and `optimize` (greedy) working. |
 | **v0.2** | Golden files generated. Integration tests passing within 0.5 dB RMSE tolerance. |
 | **v0.3** | npm package structure, ES + CJS dual build, TypeScript types, CI on GitHub Actions |
-| **v1.0** | Differential evolution optimizer, full test suite green, published to npm |
+| **v1.0** | Shelf filter support (`filterSpecs` API) + joint local optimizer matching AutoEQ's SLSQP approach, full test suite green (all 90 combinations, 0 skipped), published to npm |
+
+### v1.0 Design Notes — Read before writing code
+
+**What AutoEQ's optimizer actually does** (source: `.venv/lib/python3.9/site-packages/autoeq/peq.py`):
+
+1. **Per-filter smart initialization** (`filt.init(remaining_target)`): each filter type initializes itself against the remaining residual before any joint optimization runs. Peaking finds the biggest peak (by height × width). LowShelf/HighShelf find the frequency region with the largest average level on their respective side. Initialization is sequential (remove each filter's effect before initializing the next), but optimization is joint.
+
+2. **Joint optimization via `scipy.optimize.fmin_slsqp`**: all filter parameters optimized simultaneously under bounds constraints. SLSQP is a gradient-based quasi-Newton method — fast convergence on smooth problems, handles bounds natively without penalty terms.
+
+3. **STD-based convergence** (callback, `min_std=0.002` default): stops when the standard deviation of the last 8 loss values falls below 0.002 dB. Also supports `max_time`, `target_loss`, and `min_change_rate` stops.
+
+4. **Loss function**: RMSE of `(target - fr)[min_f:max_f]` plus per-filter sharpness penalties (sigmoid penalizing slopes steeper than 18 dB/octave for PK filters). Above 10 kHz only the average matters.
+
+**What this means for our JS implementation:**
+
+- We cannot use scipy. We need a zero-dependency JS equivalent.
+- The algorithm is a **local optimizer** starting from a **good initialization** — not a global search. Global behavior comes from the initialization, not the optimizer.
+- The critical missing piece in our v1 greedy optimizer is **joint optimization**: we optimize filters sequentially and never go back to refine earlier filters given later ones. AutoEQ optimizes all parameters simultaneously after initialization.
+- A faithful JS equivalent: keep the greedy sequential initialization (we already have this), then run a joint optimizer over all parameters with STD-based convergence stopping.
+- **Read `peq.py` before designing the implementation.** Do not infer from this summary alone.

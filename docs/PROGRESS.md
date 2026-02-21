@@ -23,7 +23,7 @@
 
 **Integration tests: 119/120 passing, 60 skipped (v2), 1 known failure (v2)**
 
-Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds AutoEq's by 0.003 dB (2.256 vs tolerance ceiling of 2.253). Root cause: greedy + coordinate descent vs AutoEq's differential evolution optimizer. Even with identical filter types (all-PK, restricted constraint), DE finds marginally better solutions. Will resolve when the DE optimizer ships in v1.0.
+Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds AutoEq's by 0.003 dB (2.256 vs tolerance ceiling of 2.253). Root cause: greedy sequential optimizer vs AutoEq's joint SLSQP optimizer. AutoEq uses `scipy.optimize.fmin_slsqp` — a gradient-based local optimizer that jointly optimizes all filter parameters simultaneously, with STD-based convergence stopping. Our greedy optimizer is sequential and local, falling just short on this hard case. Will resolve at v1.0 with a joint local optimizer.
 
 ---
 
@@ -220,4 +220,4 @@ Known failure: `blessing3 × bass_heavy × restricted` — our RMSE exceeds Auto
 
 **CI status:** 1 known failure (`blessing3 × bass_heavy × restricted`) — accepted, resolves at v1.0.
 
-## Next: v1.0 — Differential Evolution Optimizer + npm publish
+## Next: v1.0 — Joint Local Optimizer + npm publish
