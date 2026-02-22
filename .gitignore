@@ -4,3 +4,4 @@ CLAUDE.md
 dist/
 tests/scripts/output/
 .envrc
+release.sh
