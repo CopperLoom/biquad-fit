@@ -43,9 +43,9 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.27.3",
     "typescript": "^5.9.3",
-    "vitest": "^2.0.0"
+    "vitest": "^4.0.18"
   },
   "author": "CopperLoom",
   "license": "MIT"
