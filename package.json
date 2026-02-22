@@ -38,6 +38,7 @@
     "README.md"
   ],
   "scripts": {
+    "prepare": "npm run build",
     "build": "esbuild src/index.js --bundle --format=esm --platform=neutral --outfile=dist/index.js && esbuild src/index.js --bundle --format=cjs --platform=neutral --outfile=dist/index.cjs && tsc",
     "test": "vitest run",
     "test:watch": "vitest"
