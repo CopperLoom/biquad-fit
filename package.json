@@ -1,8 +1,28 @@
 {
   "name": "biquad-fit",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Compute optimal parametric EQ filter parameters to match a measured frequency response to a target curve. Reimplements the core algorithm from AutoEq. Zero dependencies.",
   "type": "module",
+  "homepage": "https://github.com/CopperLoom/biquad-fit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CopperLoom/biquad-fit.git"
+  },
+  "keywords": [
+    "headphone",
+    "audio",
+    "eq",
+    "equalization",
+    "autoeq",
+    "biquad",
+    "parametric-eq",
+    "peq",
+    "frequency-response",
+    "tuning",
+    "filter",
+    "dsp",
+    "iem"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "exports": {
