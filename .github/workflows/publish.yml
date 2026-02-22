@@ -18,13 +18,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
-      - uses: actions/github-script@v7
-        id: get-oidc-token
+      - name: Inspect OIDC token claims
+        uses: actions/github-script@v7
         with:
           script: |
             const token = await core.getIDToken('npm');
-            core.setSecret(token);
-            core.setOutput('token', token);
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            console.log('OIDC claims:', JSON.stringify(payload, null, 2));
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ steps.get-oidc-token.outputs.token }}
