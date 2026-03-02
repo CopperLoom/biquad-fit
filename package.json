@@ -6,7 +6,7 @@
   "homepage": "https://github.com/CopperLoom/biquad-fit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CopperLoom/biquad-fit.git"
+    "url": "git+https://github.com/CopperLoom/biquad-fit.git"
   },
   "keywords": [
     "headphone",
