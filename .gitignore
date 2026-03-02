@@ -1,6 +1,2 @@
-.venv/
 node_modules/
-CLAUDE.md
 tests/scripts/output/
-.envrc
-release.sh
