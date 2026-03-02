@@ -158,14 +158,14 @@
 
 **Completed:** 2026-02-22 (v1.0 joint optimizer)
 
-**What it does:** Joint parametric EQ optimizer matching AutoEQ's SLSQP approach. Finds optimal filter parameters to minimize RMSE between a corrected FR and a target curve.
+**What it does:** Joint parametric EQ optimizer matching AutoEQ's SLSQP approach — **Note:** implemented as L-BFGS from the outset, not SLSQP; ≤0.5 dB RMSE vs AutoEQ. Deviation documented in v2.0.0. Finds optimal filter parameters to minimize RMSE between a corrected FR and a target curve.
 
 **Algorithm:**
 1. Resolve filterSpecs (new API) or expand maxFilters+gainRange+qRange (old API)
 2. Interpolate to pipeline grid (1.01), center, compute error, equalize
 3. Interpolate equalization to optimizer grid (1.02)
 4. Sequential initialization: HSQ → LSQ → PK, each against remaining correction
-5. Joint L-BFGS optimization over all filter params simultaneously, with STD-based convergence (mirrors AutoEQ's SLSQP behavior)
+5. Joint L-BFGS optimization over all filter params simultaneously, with STD-based convergence (mirrors AutoEQ's SLSQP behavior) — **Note:** L-BFGS diverges from SLSQP; deviation documented in v2.0.0. See README Algorithm & Accuracy.
 6. Compute pregain
 
 **Implementation:**

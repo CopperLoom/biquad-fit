@@ -13,6 +13,8 @@
 
 **AutoEQ's implementation is the correctness oracle.** This spec documents what AutoEQ does. The JS implementation must match it as closely as a zero-dependency library permits. If a test conflicts with AutoEQ's behavior, the test is wrong.
 
+**Note (v2.0.0):** The optimizer algorithm deviated from this goal — the implementation uses L-BFGS rather than AutoEQ's SLSQP. The pipeline (interpolation, smoothing, equalization curve) was faithfully reproduced. The result is ≤0.5 dB RMSE across all 90 golden-file combinations. See §8 and README Algorithm & Accuracy.
+
 ---
 
 ## 1. The Full AutoEQ Pipeline

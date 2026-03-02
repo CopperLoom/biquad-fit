@@ -1,7 +1,8 @@
 /**
  * optimize.ts — v1.0
  *
- * Joint parametric EQ optimizer matching AutoEQ's SLSQP approach.
+ * Joint parametric EQ optimizer. Intended to match AutoEQ's SLSQP approach;
+ * implemented as L-BFGS. See README Algorithm & Accuracy for deviation notes.
  *
  * Algorithm:
  *   1. Resolve filterSpecs
@@ -9,7 +10,8 @@
  *   3. Interpolate equalization to optimizer grid (1.02)
  *   4. Sequential initialization: HSQ → LSQ → PK, each against remaining correction
  *   5. Joint L-BFGS optimization over all filter params simultaneously,
- *      with STD-based convergence stopping (mirrors AutoEQ's SLSQP behavior)
+ *      with STD-based convergence stopping (intended to mirror AutoEQ's SLSQP;
+ *      diverges due to algorithm differences — see README Algorithm & Accuracy)
  *   6. Compute pregain
  *
  * Spec: docs/joint-optimizer-spec.md
@@ -500,7 +502,8 @@ function converged(lossHistory: number[]): boolean {
 // ─── Joint optimizer ──────────────────────────────────────────────────────────
 
 /**
- * L-BFGS bounded optimizer matching AutoEQ's fmin_slsqp behavior.
+ * L-BFGS bounded optimizer. Intended to match AutoEQ's fmin_slsqp behavior;
+ * diverges due to algorithm differences. See README Algorithm & Accuracy.
  *
  * @param {Object[]} initialFilters - [{type, fc, gain, Q}]
  * @param {Object[]} specs - resolved filter specs with bounds
@@ -582,7 +585,7 @@ function computePregain(filters: Filter[], freqs: number[], fs: number, gainRang
 /**
  * Find optimal PEQ filter parameters to match measured to target.
  *
- * Pipeline (matching AutoEQ):
+ * Pipeline (reverse-engineered from AutoEQ):
  *   1. Resolve specs
  *   2. Interpolate to pipeline grid (1.01)
  *   3. Center measured at 1 kHz
