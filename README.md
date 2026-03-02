@@ -2,7 +2,7 @@
 
 Parametric EQ optimizer for the browser and Node.js.
 
-Computes the optimal set of biquad filter parameters — frequency, gain, and Q — to match a measured frequency response to a target curve. Reimplements the core algorithm from [jaakkopasanen/AutoEq](https://github.com/jaakkopasanen/AutoEq) in pure JavaScript. No dependencies, no Python required.
+Computes the optimal set of biquad filter parameters — frequency, gain, and Q — to match a measured frequency response to a target curve. Reverse-engineered from [jaakkopasanen/AutoEq](https://github.com/jaakkopasanen/AutoEq) into TypeScript. No dependencies, no Python required.
 
 [![CI](https://github.com/CopperLoom/biquad-fit/actions/workflows/ci.yml/badge.svg)](https://github.com/CopperLoom/biquad-fit/actions/workflows/ci.yml)
 
@@ -130,9 +130,28 @@ biquad-fit works in both environments from a single implementation. There are no
 
 ---
 
+## Algorithm & Accuracy
+
+biquad-fit is a reverse-engineering of AutoEQ's Python pipeline into TypeScript. The pre-optimization pipeline — interpolation, error computation, two-zone Savitzky-Golay smoothing, slope-limited equalization curve — is faithfully reproduced from the AutoEQ source.
+
+The optimizer algorithms differ:
+
+| | AutoEQ | biquad-fit |
+|---|---|---|
+| Algorithm | SLSQP (`scipy.optimize.fmin_slsqp`) | L-BFGS (Limited-memory BFGS) |
+| Gradient | Forward finite differences (h = √ε) | Forward finite differences (h = √ε) |
+| Bounds | Native QP subproblem | Gradient projection + clipping |
+| Convergence | STD-based callback (σ < 0.002) | Same |
+
+**Accuracy:** Validated against 90 golden-file combinations (5 IEMs × 6 targets × 3 constraint sets). All 90 combinations pass at ≤0.5 dB RMSE vs AutoEQ output. The gap is due to optimizer algorithm divergence — L-BFGS and SLSQP can converge to different local minima and handle bounds differently.
+
+**Path to exact parity:** Requires replacing L-BFGS with SLSQP. No pure-JS SLSQP exists (as of 2026). The most viable path is [relf/slsqp](https://github.com/relf/slsqp) (Rust, v1.0.0, January 2026) compiled to WebAssembly — but this would break the zero-dependency constraint.
+
+---
+
 ## Status
 
-v1.0 stable. All 274 tests passing (93 unit + 181 integration). The optimizer is a joint L-BFGS quasi-Newton implementation matching AutoEQ's SLSQP algorithm. Full support for mixed filter types (peaking, low shelf, high shelf) and per-filter constraints via the `filterSpecs` API.
+v2.0.0 stable. All 273 tests passing (93 unit + 180 integration). Full TypeScript source with strict-mode types. Full support for mixed filter types (peaking, low shelf, high shelf) and per-filter constraints via the `filterSpecs` API.
 
 ---
 

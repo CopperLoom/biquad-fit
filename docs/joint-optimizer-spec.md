@@ -215,13 +215,19 @@ Already correctly implemented in `optimize.js`. Documented for completeness.
 
 ---
 
-## 8. The Optimizer Algorithm: JS Equivalent of `fmin_slsqp`
+## 8. The Optimizer Algorithm: L-BFGS (Intended: JS Equivalent of `fmin_slsqp`)
 
 ### What AutoEQ uses
 
 AutoEQ calls `scipy.optimize.fmin_slsqp` — a Sequential Least Squares Programming solver — without supplying `fprime`, so scipy computes gradients internally via forward finite differences with step `eps ≈ 1.49e-8`. SLSQP approximates the Hessian using BFGS updates and at each iteration solves a quadratic subproblem to find a search direction that satisfies the bounds. Defaults: `acc=1e-6`, `iter=150`.
 
-Our JS implementation must replicate this behavior: gradient-based quasi-Newton updates using finite-difference gradients, bounds enforced natively, convergence controlled by the STD-based callback. We implement this from scratch with zero dependencies using the same mathematical structure — finite-difference gradient, BFGS Hessian approximation, bounded line search.
+### What biquad-fit implements
+
+**The original spec goal was to replicate SLSQP behavior exactly. The actual implementation uses L-BFGS (Limited-memory BFGS) instead.** L-BFGS is a closely related quasi-Newton method but differs from SLSQP in two key ways: it uses a limited-memory BFGS Hessian approximation rather than a full BFGS update, and it enforces bounds via gradient projection and clipping rather than a QP subproblem.
+
+**Accuracy result:** ≤0.5 dB RMSE vs AutoEQ across all 90 golden-file combinations. The gap is due to optimizer algorithm divergence — L-BFGS and SLSQP can converge to different local minima and handle active bounds differently. Initialization differences account for approximately 16% of the gap; the remainder is algorithmic.
+
+**Path to parity:** Requires a pure-JS SLSQP implementation. No such library exists (as of 2026). Most viable path: [relf/slsqp](https://github.com/relf/slsqp) (Rust, v1.0.0, January 2026) compiled to WebAssembly — but this would break the zero-dependency constraint.
 
 **Ruled-out approaches:**
 - **Coordinate descent** (one parameter at a time): confirmed to produce local-minima failures for ≥10 filters
