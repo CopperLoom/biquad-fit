@@ -377,7 +377,7 @@ function jointOptimize(initialFilters, specs, equalizationCurve, freqs1_02, fs):
 
 ```
 function optimize(measured, target, constraints):
-    1. Resolve specs (filterSpecs or maxFilters+gainRange+qRange)
+    1. Resolve filterSpecs
     2. Interpolate measured and target to log grid, step=1.01 (pipeline grid)
     3. fr.center() — subtract value at 1 kHz from measured
     4. fr.error = measured.db - target.db (element-wise, on 1.01 grid)

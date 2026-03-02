@@ -1,5 +1,5 @@
 /**
- * smooth.js
+ * smooth.ts
  *
  * Fractional-octave smoothing of a frequency response using Savitzky-Golay
  * filtering (polynomial order 2), matching AutoEQ's _smoothen() implementation.
@@ -8,50 +8,40 @@
  * zero-dependency JS implementation of the same algorithm.
  */
 
-const DEFAULTS = {
+import type { FreqPoint, SmoothOptions } from './types.js';
+
+const DEFAULTS: Required<SmoothOptions> = {
   windowOctaves: 1 / 3,
 };
 
 // ─── Savitzky-Golay coefficients ────────────────────────────────────────────
 
-/**
- * Compute Savitzky-Golay convolution coefficients for a given window size
- * and polynomial order. Returns coefficients for the 0th derivative
- * (smoothing).
- *
- * Algorithm: Build Vandermonde matrix V, compute (V^T V)^{-1} V^T,
- * take first row.
- *
- * @param {number} windowSize - must be odd and > polyOrder
- * @param {number} polyOrder
- * @returns {number[]} coefficients of length windowSize
- */
-function savgolCoeffs(windowSize, polyOrder) {
+function savgolCoeffs(windowSize: number, polyOrder: number): number[] {
   const m = (windowSize - 1) / 2;
   const nCols = polyOrder + 1;
 
   // Build Vandermonde matrix V[i][j] = i^j, i in [-m, m]
-  const V = [];
+  const V: number[][] = [];
   for (let i = -m; i <= m; i++) {
-    const row = new Array(nCols);
+    const row: number[] = new Array<number>(nCols);
     row[0] = 1;
-    for (let j = 1; j < nCols; j++) row[j] = row[j - 1] * i;
+    for (let j = 1; j < nCols; j++) row[j] = row[j - 1]! * i;
     V.push(row);
   }
 
   // Compute V^T V (nCols x nCols)
-  const VtV = Array.from({ length: nCols }, () => new Array(nCols).fill(0));
+  const VtV: number[][] = Array.from({ length: nCols }, () => new Array<number>(nCols).fill(0));
   for (let i = 0; i < nCols; i++) {
     for (let j = 0; j < nCols; j++) {
       for (let k = 0; k < windowSize; k++) {
-        VtV[i][j] += V[k][i] * V[k][j];
+        VtV[i]![j]! += V[k]![i]! * V[k]![j]!;
       }
     }
   }
 
   // Invert VtV via Gauss-Jordan elimination
-  const aug = VtV.map((row, i) => {
-    const ext = new Array(nCols).fill(0);
+  const aug: number[][] = VtV.map((row, i) => {
+    const ext: number[] = new Array<number>(nCols).fill(0);
     ext[i] = 1;
     return [...row, ...ext];
   });
@@ -60,31 +50,31 @@ function savgolCoeffs(windowSize, polyOrder) {
     // Partial pivot
     let maxRow = col;
     for (let row = col + 1; row < nCols; row++) {
-      if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) maxRow = row;
+      if (Math.abs(aug[row]![col]!) > Math.abs(aug[maxRow]![col]!)) maxRow = row;
     }
-    [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
+    [aug[col], aug[maxRow]] = [aug[maxRow]!, aug[col]!];
 
-    const pivot = aug[col][col];
-    for (let j = col; j < 2 * nCols; j++) aug[col][j] /= pivot;
+    const pivot = aug[col]![col]!;
+    for (let j = col; j < 2 * nCols; j++) aug[col]![j]! /= pivot;
 
     for (let row = 0; row < nCols; row++) {
       if (row === col) continue;
-      const factor = aug[row][col];
+      const factor = aug[row]![col]!;
       for (let j = col; j < 2 * nCols; j++) {
-        aug[row][j] -= factor * aug[col][j];
+        aug[row]![j]! -= factor * aug[col]![j]!;
       }
     }
   }
 
   // Extract inverse
-  const inv = aug.map(row => row.slice(nCols));
+  const inv: number[][] = aug.map(row => row.slice(nCols));
 
   // Compute (V^T V)^{-1} V^T, first row only (0th derivative)
-  const coeffs = new Array(windowSize);
+  const coeffs: number[] = new Array<number>(windowSize);
   for (let k = 0; k < windowSize; k++) {
     let c = 0;
     for (let j = 0; j < nCols; j++) {
-      c += inv[0][j] * V[k][j];
+      c += inv[0]![j]! * V[k]![j]!;
     }
     coeffs[k] = c;
   }
@@ -93,42 +83,31 @@ function savgolCoeffs(windowSize, polyOrder) {
 }
 
 // Cache coefficients by window size (polyorder is always 2)
-const coeffsCache = new Map();
+const coeffsCache = new Map<number, number[]>();
 
-function getCachedCoeffs(windowSize) {
+function getCachedCoeffs(windowSize: number): number[] {
   if (!coeffsCache.has(windowSize)) {
     coeffsCache.set(windowSize, savgolCoeffs(windowSize, 2));
   }
-  return coeffsCache.get(windowSize);
+  return coeffsCache.get(windowSize)!;
 }
 
 // ─── Savitzky-Golay filter ──────────────────────────────────────────────────
 
-/**
- * Apply Savitzky-Golay filter to an array.
- * Matches scipy.signal.savgol_filter(data, window_length, 2, mode='interp').
- *
- * For interior points: convolution with precomputed coefficients.
- * For edge points: fit a local polynomial to available data (scipy 'interp' mode).
- *
- * @param {number[]} data
- * @param {number} windowSize - must be odd, >= 3
- * @returns {number[]}
- */
-function savgolFilter(data, windowSize) {
+function savgolFilter(data: number[], windowSize: number): number[] {
   const n = data.length;
   if (windowSize >= n) windowSize = n % 2 === 0 ? n - 1 : n;
   if (windowSize < 3) windowSize = 3;
 
   const coeffs = getCachedCoeffs(windowSize);
   const m = (windowSize - 1) / 2;
-  const result = new Array(n);
+  const result: number[] = new Array<number>(n);
 
   // Interior points: direct convolution
   for (let i = m; i < n - m; i++) {
     let sum = 0;
     for (let j = 0; j < windowSize; j++) {
-      sum += coeffs[j] * data[i - m + j];
+      sum += coeffs[j]! * data[i - m + j]!;
     }
     result[i] = sum;
   }
@@ -145,11 +124,7 @@ function savgolFilter(data, windowSize) {
   return result;
 }
 
-/**
- * Fit a degree-2 polynomial to data[start..start+len] and evaluate at index pos
- * within that window.
- */
-function fitPolyEval(data, start, len, pos) {
+function fitPolyEval(data: number[], start: number, len: number, pos: number): number {
   // Least squares fit: y = a0 + a1*x + a2*x^2
   // where x is centered at the middle of the window
   const mid = (len - 1) / 2;
@@ -166,7 +141,7 @@ function fitPolyEval(data, start, len, pos) {
     s2 += x2;
     s3 += x * x2;
     s4 += x2 * x2;
-    const y = data[start + j];
+    const y = data[start + j]!;
     r0 += y;
     r1 += x * y;
     r2 += x2 * y;
@@ -197,28 +172,20 @@ function fitPolyEval(data, start, len, pos) {
     }
   }
 
-  const a0 = A[0][3], a1 = A[1][3], a2 = A[2][3];
+  const a0 = A[0]![3]!, a1 = A[1]![3]!, a2 = A[2]![3]!;
   const x = pos - mid;
   return a0 + a1 * x + a2 * x * x;
 }
 
 // ─── Window size calculation ────────────────────────────────────────────────
 
-/**
- * Calculate Savitzky-Golay window size in samples from octaves,
- * matching AutoEQ's smoothing_window_size().
- *
- * @param {number[]} freqs
- * @param {number} octaves
- * @returns {number} odd integer >= 3
- */
-function smoothingWindowSize(freqs, octaves) {
+function smoothingWindowSize(freqs: number[], octaves: number): number {
   const k = Math.pow(2, octaves);
 
   // Average step size
   let stepSum = 0;
   for (let i = 1; i < freqs.length; i++) {
-    stepSum += freqs[i] / freqs[i - 1];
+    stepSum += freqs[i]! / freqs[i - 1]!;
   }
   const stepSize = stepSum / (freqs.length - 1);
 
@@ -234,15 +201,7 @@ function smoothingWindowSize(freqs, octaves) {
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
-/**
- * Smooth a frequency response using Savitzky-Golay filtering (order 2),
- * matching AutoEQ's smoothen() implementation.
- *
- * @param {{freq: number, db: number}[]} fr - log-spaced input FR
- * @param {{windowOctaves?: number}} [options]
- * @returns {{freq: number, db: number}[]}
- */
-export function smooth(fr, options = {}) {
+export function smooth(fr: FreqPoint[], options: SmoothOptions = {}): FreqPoint[] {
   const { windowOctaves } = { ...DEFAULTS, ...options };
 
   const freqs = fr.map(pt => pt.freq);

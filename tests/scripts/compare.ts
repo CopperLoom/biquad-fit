@@ -10,10 +10,6 @@
  *
  * File formats accepted: JSON [{freq, db}] or CSV with frequency/raw columns.
  * Bands default to 5.
- *
- * TODO (v2): when the DE optimizer gains LSQ/HSQ support, update buildAutoeqConfig()
- * to use mixed filter types (1 LSQ + (N-2) PK + 1 HSQ for N >= 4) instead of all-PK.
- * Also un-skip the 'mixed filter types (v2)' test in tests/unit/optimize.test.js.
  */
 
 import { readFileSync } from 'fs';
@@ -21,9 +17,9 @@ import { spawnSync }    from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-import { optimize }      from '../src/optimize.js';
-import { applyFilters }  from '../src/applyFilters.js';
-import { interpolate }   from '../src/interpolate.js';
+import { optimize }      from '../../src/optimize.js';
+import { applyFilters }  from '../../src/applyFilters.js';
+import { interpolate }   from '../../src/interpolate.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -79,8 +75,6 @@ const fr     = loadFile(frPath);
 const target = loadFile(targetPath);
 
 // ── AutoEQ config builder ─────────────────────────────────────────────────────
-// TODO (v2): replace all-PK with mixed types once biquad-fit supports LSQ/HSQ.
-// For N >= 4: [LOW_SHELF, ...PK×(N-2)..., HIGH_SHELF]
 
 function buildAutoeqConfig(n, gainMax, qMin, qMax, freqMin, freqMax) {
   return {
@@ -111,7 +105,7 @@ const frCentered = centerAt1k(fr);
 
 // ── Run biquad-fit ────────────────────────────────────────────────────────────
 
-const constraints = { maxFilters: bands, gainRange: [-gainMax, gainMax], qRange: [qMin, qMax], freqRange: [freqMin, freqMax] };
+const constraints = { filterSpecs: Array.from({ length: bands }, () => ({ type: 'PK', gainRange: [-gainMax, gainMax], qRange: [qMin, qMax] })), freqRange: [freqMin, freqMax] };
 const jsResult    = optimize(frCentered, target, constraints);
 
 // RMSE without pregain (shape comparison only, matches generate_golden.py convention)
@@ -154,7 +148,7 @@ console.log(`\nFR:     ${frPath}  (${fr.length} pts)`);
 console.log(`Target: ${targetPath}  (${target.length} pts)`);
 console.log(`Bands:  ${bands}  |  gain ±${gainMax} dB  |  Q ${qMin}–${qMax}  |  freq ${freqMin}–${freqMax} Hz\n`);
 
-console.log(`${'AutoEQ (all-PK, v2 will use shelves)'.padEnd(COL)}  biquad-fit (all-PK)`);
+console.log(`${'AutoEQ (all-PK)'.padEnd(COL)}  biquad-fit (all-PK)`);
 console.log(`${LINE}  ${LINE}`);
 
 const rows = Math.max(aeSorted.length, jsSorted.length);

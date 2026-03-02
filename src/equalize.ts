@@ -1,5 +1,5 @@
 /**
- * equalize.js — v1.0
+ * equalize.ts — v1.0
  *
  * Computes the equalization (correction) curve from an error curve,
  * faithfully matching AutoEQ's equalize() pipeline:
@@ -12,6 +12,7 @@
  * Spec: docs/joint-optimizer-spec.md §2.2, §12
  */
 
+import type { FreqPoint } from './types.js';
 import { smooth } from './smooth.js';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ const RE_SMOOTH_OCTAVES     = 1 / 5;
  * @param {number} [trebleOct=2.0]
  * @returns {{freq: number, db: number}[]}
  */
-function twoZoneSmooth(fr, normalOct = NORMAL_SMOOTH_OCTAVES, trebleOct = TREBLE_SMOOTH_OCTAVES) {
+function twoZoneSmooth(fr: FreqPoint[], normalOct = NORMAL_SMOOTH_OCTAVES, trebleOct = TREBLE_SMOOTH_OCTAVES): FreqPoint[] {
   const normal = smooth(fr, { windowOctaves: normalOct });
   const treble = smooth(fr, { windowOctaves: trebleOct });
 
@@ -49,7 +50,7 @@ function twoZoneSmooth(fr, normalOct = NORMAL_SMOOTH_OCTAVES, trebleOct = TREBLE
     const x       = (Math.log10(pt.freq) - logFCtr) / (halfRange / 4);
     const kTreble = 1 / (1 + Math.exp(-x));
     const kNormal = 1 - kTreble;
-    return { freq: pt.freq, db: normal[i].db * kNormal + treble[i].db * kTreble };
+    return { freq: pt.freq, db: normal[i]!.db * kNormal + treble[i]!.db * kTreble };
   });
 }
 
@@ -63,11 +64,8 @@ function twoZoneSmooth(fr, normalOct = NORMAL_SMOOTH_OCTAVES, trebleOct = TREBLE
  * neighboring valleys (the minimum between this peak and the next
  * higher peak on each side).
  */
-function findPeaks(arr, minProminence = 1) {
-  // Step 1: find all local maxima, including plateau midpoints.
-  // Scipy's find_peaks handles plateaus by finding flat regions that are
-  // higher than both sides, then selecting the midpoint.
-  const maxima = [];
+function findPeaks(arr: number[], minProminence = 1): number[] {
+  const maxima: number[] = [];
   let i = 1;
   while (i < arr.length - 1) {
     if (arr[i] > arr[i - 1]) {
@@ -88,9 +86,9 @@ function findPeaks(arr, minProminence = 1) {
   if (maxima.length === 0) return [];
 
   // Step 2: compute prominence for each maximum
-  const peaks = [];
+  const peaks: number[] = [];
   for (const ix of maxima) {
-    const h = arr[ix];
+    const h = arr[ix]!;
 
     // Scan left: find the minimum between this peak and the nearest higher peak
     let leftMin = h;
@@ -128,25 +126,25 @@ function findPeaks(arr, minProminence = 1) {
  * @param {number[]} dipInds - indices of dips (prominence ≥ 1)
  * @returns {boolean[]} mask - true = limit-free
  */
-function protectionMask(y, peakInds, dipInds) {
+function protectionMask(y: number[], peakInds: number[], dipInds: number[]): boolean[] {
   const n = y.length;
-  const mask = new Array(n).fill(false);
+  const mask: boolean[] = new Array<boolean>(n).fill(false);
 
   // Build extended dip list with sentinel
-  let extDipInds, dipLevels;
+  let extDipInds: number[], dipLevels: number[];
 
-  if (peakInds.length > 0 && (dipInds.length === 0 || peakInds[peakInds.length - 1] > dipInds[dipInds.length - 1])) {
+  if (peakInds.length > 0 && (dipInds.length === 0 || peakInds[peakInds.length - 1]! > dipInds[dipInds.length - 1]!)) {
     // Last significant feature is a peak — add synthetic dip after it
-    let lastDipIx = peakInds[peakInds.length - 1];
-    let minVal = y[lastDipIx];
+    let lastDipIx = peakInds[peakInds.length - 1]!;
+    let minVal = y[lastDipIx]!;
     for (let j = lastDipIx; j < n; j++) {
       if (y[j] < minVal) { minVal = y[j]; lastDipIx = j; }
     }
     extDipInds = [...dipInds, lastDipIx];
-    dipLevels = extDipInds.map(ix => y[ix]);
+    dipLevels = extDipInds.map(ix => y[ix]!);
   } else {
     extDipInds = [...dipInds, -1]; // sentinel
-    dipLevels = extDipInds.map(ix => (ix >= 0 ? y[ix] : 0));
+    dipLevels = extDipInds.map(ix => (ix >= 0 ? y[ix]! : 0));
     // Sentinel level = global minimum
     let globalMin = Infinity;
     for (let j = 0; j < n; j++) {
@@ -159,9 +157,9 @@ function protectionMask(y, peakInds, dipInds) {
 
   // For each interior dip, check if it's lower than neighbors
   for (let i = 1; i < extDipInds.length - 1; i++) {
-    const dipIx = extDipInds[i];
-    const targetLeft  = dipLevels[i - 1];
-    const targetRight = dipLevels[i + 1];
+    const dipIx = extDipInds[i]!;
+    const targetLeft  = dipLevels[i - 1]!;
+    const targetRight = dipLevels[i + 1]!;
 
     // Scan left from dip: find where y rises to targetLeft
     let leftIx = dipIx;
@@ -197,26 +195,26 @@ function protectionMask(y, peakInds, dipInds) {
  * @param {number[]} dipInds
  * @returns {number}
  */
-function findRtlStart(y, peakInds, dipInds) {
+function findRtlStart(y: number[], peakInds: number[], dipInds: number[]): number {
   const n = y.length;
 
-  if (peakInds.length > 0 && (dipInds.length === 0 || peakInds[peakInds.length - 1] > dipInds[dipInds.length - 1])) {
+  if (peakInds.length > 0 && (dipInds.length === 0 || peakInds[peakInds.length - 1]! > dipInds[dipInds.length - 1]!)) {
     // Last significant feature is a positive peak
-    const lastPeak = peakInds[peakInds.length - 1];
-    let threshold;
+    const lastPeak = peakInds[peakInds.length - 1]!;
+    let threshold: number;
     if (dipInds.length > 0) {
-      threshold = y[dipInds[dipInds.length - 1]];
+      threshold = y[dipInds[dipInds.length - 1]!]!;
     } else {
-      threshold = Math.max(y[0], y[n - 1]);
+      threshold = Math.max(y[0]!, y[n - 1]!);
     }
 
     for (let j = lastPeak; j < n; j++) {
-      if (y[j] <= threshold) return j;
+      if (y[j]! <= threshold) return j;
     }
     return n - 1;
   } else {
     // Last significant feature is a dip
-    return dipInds[dipInds.length - 1];
+    return dipInds[dipInds.length - 1]!;
   }
 }
 
@@ -236,42 +234,42 @@ function findRtlStart(y, peakInds, dipInds) {
  * @param {boolean[]} limitFreeMask
  * @returns {number[]}
  */
-function limitedLtrSlope(freqs, y, maxSlope, startIndex, peakInds, limitFreeMask) {
+function limitedLtrSlope(freqs: number[], y: number[], maxSlope: number, startIndex: number, peakInds: number[], limitFreeMask: boolean[]): number[] {
   const n = y.length;
-  const limited = new Array(n);
-  const clipped = new Array(n).fill(false);
-  const regions = []; // list of [start, end) pairs
+  const limited: number[] = new Array<number>(n);
+  const clipped: boolean[] = new Array<boolean>(n).fill(false);
+  const regions: number[][] = []; // list of [start, end) pairs
 
   for (let i = 0; i < n; i++) {
     if (i <= startIndex) {
-      limited[i] = y[i];
+      limited[i] = y[i]!;
       continue;
     }
 
-    const octaves = Math.log2(freqs[i] / freqs[i - 1]);
-    const slope = (y[i] - limited[i - 1]) / octaves;
+    const octaves = Math.log2(freqs[i]! / freqs[i - 1]!);
+    const slope = (y[i]! - limited[i - 1]!) / octaves;
 
-    if (slope > maxSlope && !limitFreeMask[i]) {
+    if (slope > maxSlope && !limitFreeMask[i]!) {
       // Clip
-      if (!clipped[i - 1]) {
+      if (!clipped[i - 1]!) {
         regions.push([i]); // start new region
       }
       clipped[i] = true;
-      limited[i] = limited[i - 1] + maxSlope * octaves;
+      limited[i] = limited[i - 1]! + maxSlope * octaves;
     } else {
       // No clipping
-      limited[i] = y[i];
+      limited[i] = y[i]!;
 
-      if (clipped[i - 1]) {
+      if (clipped[i - 1]!) {
         // End of clipped region — validate
-        const region = regions[regions.length - 1];
+        const region = regions[regions.length - 1]!;
         region.push(i + 1); // close [start, end)
-        const regionStart = region[0];
+        const regionStart = region[0]!;
 
         // Check if any peaks fall within this region
         let hasPeak = false;
         for (let p = 0; p < peakInds.length; p++) {
-          if (peakInds[p] >= regionStart && peakInds[p] < i) {
+          if (peakInds[p]! >= regionStart && peakInds[p]! < i) {
             hasPeak = true;
             break;
           }
@@ -280,7 +278,7 @@ function limitedLtrSlope(freqs, y, maxSlope, startIndex, peakInds, limitFreeMask
         if (!hasPeak) {
           // No peaks — discard limitation
           for (let j = regionStart; j < i; j++) {
-            limited[j] = y[j];
+            limited[j] = y[j]!;
             clipped[j] = false;
           }
           regions.pop();
@@ -290,8 +288,8 @@ function limitedLtrSlope(freqs, y, maxSlope, startIndex, peakInds, limitFreeMask
   }
 
   // Close any region that extends to the end
-  if (regions.length > 0 && regions[regions.length - 1].length === 1) {
-    regions[regions.length - 1].push(n - 1);
+  if (regions.length > 0 && regions[regions.length - 1]!.length === 1) {
+    regions[regions.length - 1]!.push(n - 1);
   }
 
   return limited;
@@ -308,7 +306,7 @@ function limitedLtrSlope(freqs, y, maxSlope, startIndex, peakInds, limitFreeMask
  * @param {boolean[]} limitFreeMask
  * @returns {number[]}
  */
-function limitedRtlSlope(freqs, y, maxSlope, rtlStart, peakInds, limitFreeMask) {
+function limitedRtlSlope(freqs: number[], y: number[], maxSlope: number, rtlStart: number, peakInds: number[], limitFreeMask: boolean[]): number[] {
   const n = y.length;
 
   // Flip arrays
@@ -339,7 +337,7 @@ function limitedRtlSlope(freqs, y, maxSlope, rtlStart, peakInds, limitFreeMask) 
  * @param {{freq: number, db: number}[]} error - output of compensate(), on 1.01 grid
  * @returns {{freq: number, db: number}[]}
  */
-export function equalize(error) {
+export function equalize(error: FreqPoint[]): FreqPoint[] {
   const freqs = error.map(pt => pt.freq);
   const n = freqs.length;
 
@@ -356,7 +354,7 @@ export function equalize(error) {
 
   // Step 4: if no significant peaks or dips, return as-is
   if (peakInds.length === 0 && dipInds.length === 0) {
-    return y.map((v, i) => ({ freq: freqs[i], db: v }));
+    return y.map((v, i) => ({ freq: freqs[i]!, db: v }));
   }
 
   // Step 5: slope limiting
@@ -370,18 +368,18 @@ export function equalize(error) {
   const rtl = limitedRtlSlope(freqs, y, MAX_SLOPE, rtlStart, allPeakInds, limitFreeMask);
 
   // Combine: element-wise minimum
-  const combined = new Array(n);
+  const combined: number[] = new Array<number>(n);
   for (let i = 0; i < n; i++) {
-    combined[i] = Math.min(ltr[i], rtl[i]);
+    combined[i] = Math.min(ltr[i]!, rtl[i]!);
   }
 
   // Step 6: clip positive gain to MAX_GAIN (no cap on cuts)
   for (let i = 0; i < n; i++) {
-    if (combined[i] > MAX_GAIN) combined[i] = MAX_GAIN;
+    if (combined[i]! > MAX_GAIN) combined[i] = MAX_GAIN;
   }
 
   // Step 7: re-smooth with 1/5 octave (both zones)
-  const toSmooth = combined.map((v, i) => ({ freq: freqs[i], db: v }));
+  const toSmooth = combined.map((v, i) => ({ freq: freqs[i]!, db: v }));
   const reSmoothed = twoZoneSmooth(toSmooth, RE_SMOOTH_OCTAVES, RE_SMOOTH_OCTAVES);
 
   return reSmoothed;

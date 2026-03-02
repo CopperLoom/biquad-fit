@@ -59,9 +59,11 @@ const CONSTRAINT_SETS = {
     gainRange: [-12, 12],
   },
   restricted: {
-    maxFilters: 3,
-    gainRange:  [-6, 6],
-    qRange:     [1.0, 5.0],
+    filterSpecs: [
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+    ],
     freqRange:  [20, 10000],
   },
   qudelix_10: {
@@ -87,22 +89,12 @@ const RMSE_TOLERANCE = 0.5;
 
 // Per-constraint metadata for structural checks.
 // resolvedSpecs: the expanded filterSpecs array with per-filter bounds.
-// gainRange / qRange / freqRange: fallback bounds for constraints without filterSpecs.
 function getResolvedSpecs(constraintName, constraints) {
-  if (constraints.filterSpecs) {
-    return constraints.filterSpecs.map(s => ({
-      type:      s.type,
-      gainRange: s.gainRange,
-      qRange:    s.qRange  ?? (s.type === 'PK' ? [0.5, 10] : [0.4, 0.7]),
-      freqRange: s.fcRange ?? constraints.freqRange,
-    }));
-  }
-  // Old API: all-PK
-  return Array.from({ length: constraints.maxFilters }, () => ({
-    type:      'PK',
-    gainRange: constraints.gainRange,
-    qRange:    constraints.qRange,
-    freqRange: constraints.freqRange,
+  return constraints.filterSpecs.map(s => ({
+    type:      s.type,
+    gainRange: s.gainRange,
+    qRange:    s.qRange  ?? (s.type === 'PK' ? [0.5, 10] : [0.4, 0.7]),
+    freqRange: s.fcRange ?? constraints.freqRange,
   }));
 }
 

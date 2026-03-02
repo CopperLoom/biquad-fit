@@ -1,24 +1,10 @@
 /**
- * Resample a frequency response to a log-spaced grid.
+ * interpolate.ts
  *
- * Interpolation is log-linear: dB values are interpolated linearly
- * as a function of log(freq). This matches AutoEq's behavior and
- * reflects how human hearing perceives frequency.
+ * Resamples a frequency response to a log-spaced grid using log-linear
+ * interpolation (linear interpolation in log-frequency space).
  *
- * Points outside the input range are clamped to the nearest endpoint.
- *
- * @param {{freq: number, db: number}[]} fr - input frequency response
- * @param {{step?: number, fMin?: number, fMax?: number}} [options]
- * @returns {{freq: number, db: number}[]}
+ * Default grid matches AutoEq: step=1.01, 20–20000 Hz (~461 points).
  */
-export function interpolate(fr: {
-    freq: number;
-    db: number;
-}[], options?: {
-    step?: number;
-    fMin?: number;
-    fMax?: number;
-}): {
-    freq: number;
-    db: number;
-}[];
+import type { FreqPoint, InterpolateOptions } from './types.js';
+export declare function interpolate(fr: FreqPoint[], options?: InterpolateOptions): FreqPoint[];

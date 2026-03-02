@@ -1,4 +1,21 @@
 /**
+ * optimize.ts — v1.0
+ *
+ * Joint parametric EQ optimizer matching AutoEQ's SLSQP approach.
+ *
+ * Algorithm:
+ *   1. Resolve filterSpecs
+ *   2. Interpolate to pipeline grid (1.01), center, compute error, equalize
+ *   3. Interpolate equalization to optimizer grid (1.02)
+ *   4. Sequential initialization: HSQ → LSQ → PK, each against remaining correction
+ *   5. Joint L-BFGS optimization over all filter params simultaneously,
+ *      with STD-based convergence stopping (mirrors AutoEQ's SLSQP behavior)
+ *   6. Compute pregain
+ *
+ * Spec: docs/joint-optimizer-spec.md
+ */
+import type { FreqPoint, Constraints, OptimizeResult } from './types.js';
+/**
  * Find optimal PEQ filter parameters to match measured to target.
  *
  * Pipeline (matching AutoEQ):
@@ -14,21 +31,7 @@
  *
  * @param {{freq: number, db: number}[]} measured
  * @param {{freq: number, db: number}[]} target
- * @param {Object} [constraints]
+ * @param {Object} constraints
  * @returns {{ pregain: number, filters: {type: string, fc: number, gain: number, Q: number}[] }}
  */
-export function optimize(measured: {
-    freq: number;
-    db: number;
-}[], target: {
-    freq: number;
-    db: number;
-}[], constraints?: any): {
-    pregain: number;
-    filters: {
-        type: string;
-        fc: number;
-        gain: number;
-        Q: number;
-    }[];
-};
+export declare function optimize(measured: FreqPoint[], target: FreqPoint[], constraints: Constraints): OptimizeResult;

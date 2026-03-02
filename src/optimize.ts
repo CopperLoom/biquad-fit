@@ -1,10 +1,10 @@
 /**
- * optimize.js — v1.0
+ * optimize.ts — v1.0
  *
  * Joint parametric EQ optimizer matching AutoEQ's SLSQP approach.
  *
  * Algorithm:
- *   1. Resolve filterSpecs (new API) or expand maxFilters+gainRange+qRange (old API)
+ *   1. Resolve filterSpecs
  *   2. Interpolate to pipeline grid (1.01), center, compute error, equalize
  *   3. Interpolate equalization to optimizer grid (1.02)
  *   4. Sequential initialization: HSQ → LSQ → PK, each against remaining correction
@@ -15,16 +15,29 @@
  * Spec: docs/joint-optimizer-spec.md
  */
 
+import type { FilterSpec, FilterType, Filter, FreqPoint, Constraints, OptimizeResult } from './types.js';
 import { biquadResponse } from './biquadResponse.js';
 import { interpolate }    from './interpolate.js';
 import { compensate }     from './compensate.js';
 import { equalize }       from './equalize.js';
 
+interface ResolvedFilterSpec {
+  type:      FilterType;
+  gainRange: [number, number];
+  qRange:    [number, number];
+  fcRange:   [number, number];
+}
+
+interface LbfgsEntry { s: number[]; y: number[]; }
+
+interface Bounds { lo: number[]; hi: number[]; }
+
 const DEFAULT_FS      = 44100;
 const PIPELINE_GRID   = { step: 1.01, fMin: 20, fMax: 20000 };
 const OPTIMIZER_GRID  = { step: 1.02, fMin: 20, fMax: 20000 };
-const SHELF_Q_RANGE   = [0.4, 0.7];
-const SHELF_FC_RANGE  = [20, 10000];
+const SHELF_Q_RANGE:   [number, number] = [0.4, 0.7];
+const SHELF_FC_RANGE:  [number, number] = [20, 10000];
+const DEFAULT_PK_Q_RANGE: [number, number] = [0.18, 6.0];  // AutoEQ defaults: 0.18248 (5-oct max bw), 6.0
 const IX_10K_CUTOFF   = 10000;
 const LOSS_FREQ_MIN   = 20;     // DEFAULT_PEQ_OPTIMIZER_MIN_F (hardcoded)
 const LOSS_FREQ_MAX   = 20000;  // DEFAULT_PEQ_OPTIMIZER_MAX_F (hardcoded)
@@ -39,36 +52,25 @@ const FD_H            = Math.sqrt(Number.EPSILON);  // ≈ 1.49e-8, matches scip
 // ─── Resolve filterSpecs from constraints ─────────────────────────────────────
 
 /**
- * Normalize constraints to an array of filter specs with all defaults filled in.
- * Accepts either the new filterSpecs API or the old maxFilters+gainRange+qRange API.
+ * Normalize filterSpecs to an array of resolved filter specs with all defaults filled in.
+ * gainRange is required on each FilterSpec; qRange defaults by filter type.
  */
-function resolveSpecs(constraints, defaultFreqRange) {
-  const {
-    filterSpecs,
-    maxFilters = 5,
-    gainRange  = [-12, 12],
-    qRange     = [0.18, 6.0],  // AutoEQ defaults: 0.18248 (5-oct max bw), 6.0
-  } = constraints;
-
-  const raw = filterSpecs
-    ? filterSpecs
-    : Array.from({ length: maxFilters }, () => ({ type: 'PK', gainRange, qRange }));
-
-  return raw.map(s => {
-    const type    = s.type || 'PK';
+function resolveSpecs(filterSpecs: FilterSpec[], defaultFreqRange: [number, number]): ResolvedFilterSpec[] {
+  return filterSpecs.map(s => {
+    const type    = (s.type ?? 'PK') as FilterType;
     const isShelf = type === 'LSQ' || type === 'HSQ';
     return {
       type,
-      gainRange: s.gainRange ?? gainRange,
-      qRange:    s.qRange    ?? (isShelf ? SHELF_Q_RANGE : qRange),
-      fcRange:   s.fcRange   ?? (isShelf ? SHELF_FC_RANGE : defaultFreqRange),
+      gainRange: s.gainRange,
+      qRange:    s.qRange    ?? (isShelf ? SHELF_Q_RANGE    : DEFAULT_PK_Q_RANGE),
+      fcRange:   s.fcRange   ?? (isShelf ? SHELF_FC_RANGE   : defaultFreqRange),
     };
   });
 }
 
 // ─── Sharpness penalty (PK only, matching AutoEQ) ─────────────────────────────
 
-function sharpnessPenalty(type, fc, gain, Q, freqs, fs) {
+function sharpnessPenalty(type: FilterType, fc: number, gain: number, Q: number, freqs: number[], fs: number): number {
   if (type !== 'PK') return 0;
   const gainLimit = -0.09503189270199464 + 20.575128011847003 / Q;
   if (gainLimit <= 0) return 0;
@@ -80,8 +82,8 @@ function sharpnessPenalty(type, fc, gain, Q, freqs, fs) {
 
 // ─── Filter initialization ────────────────────────────────────────────────────
 
-function findLocalPeaks(arr) {
-  const peaks = [];
+function findLocalPeaks(arr: number[]): number[] {
+  const peaks: number[] = [];
   let i = 1;
   while (i < arr.length - 1) {
     if (arr[i] > arr[i - 1]) {
@@ -98,7 +100,7 @@ function findLocalPeaks(arr) {
   return peaks;
 }
 
-function initPeaking(freqs, correctionDb, spec) {
+function initPeaking(freqs: number[], correctionDb: number[], spec: ResolvedFilterSpec): Filter {
   const { gainRange, qRange, fcRange } = spec;
 
   const minFcIdx = freqs.findIndex(f => f >= fcRange[0]);
@@ -112,26 +114,26 @@ function initPeaking(freqs, correctionDb, spec) {
 
   let bestIx = minFcIdx, bestSize = -1;
 
-  const evalPeaks = (peaks, arr, offset) => {
+  const evalPeaks = (peaks: number[], arr: number[], offset: number) => {
     for (const ix of peaks) {
       const absIx = ix + offset;
       if (absIx < minFcIdx || absIx > maxFcIdx) continue;
-      const height = arr[ix];
+      const height = arr[ix]!;
       if (height <= 0) continue;
       // Interpolated half-height width (matching scipy find_peaks)
       const halfH = height / 2;
       let lo = ix, hi = ix;
-      while (lo > 0 && arr[lo - 1] > halfH) lo--;
-      while (hi < arr.length - 1 && arr[hi + 1] > halfH) hi++;
+      while (lo > 0 && arr[lo - 1]! > halfH) lo--;
+      while (hi < arr.length - 1 && arr[hi + 1]! > halfH) hi++;
       // Interpolate left crossing
       let loFrac = lo;
-      if (lo > 0 && arr[lo - 1] <= halfH && arr[lo] > halfH) {
-        loFrac = lo - 1 + (halfH - arr[lo - 1]) / (arr[lo] - arr[lo - 1]);
+      if (lo > 0 && arr[lo - 1]! <= halfH && arr[lo]! > halfH) {
+        loFrac = lo - 1 + (halfH - arr[lo - 1]!) / (arr[lo]! - arr[lo - 1]!);
       }
       // Interpolate right crossing
       let hiFrac = hi;
-      if (hi < arr.length - 1 && arr[hi + 1] <= halfH && arr[hi] > halfH) {
-        hiFrac = hi + (arr[hi] - halfH) / (arr[hi] - arr[hi + 1]);
+      if (hi < arr.length - 1 && arr[hi + 1]! <= halfH && arr[hi]! > halfH) {
+        hiFrac = hi + (arr[hi]! - halfH) / (arr[hi]! - arr[hi + 1]!);
       }
       const width = hiFrac - loFrac;
       const size = height * width;
@@ -148,36 +150,36 @@ function initPeaking(freqs, correctionDb, spec) {
     // No peaks found: midpoint fc, Q=sqrt(2), gain=0
     const midIx = (minFcIdx + maxFcIdx) >> 1;
     return {
-      type: 'PK',
-      fc: freqs[midIx],
+      type: 'PK' as FilterType,
+      fc: freqs[midIx]!,
       gain: 0,
       Q: Math.max(qRange[0], Math.min(qRange[1], Math.SQRT2)),
     };
   }
 
-  const fc   = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]));
-  const gain = Math.max(gainRange[0], Math.min(gainRange[1], correctionDb[bestIx]));
+  const fc   = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]!));
+  const gain = Math.max(gainRange[0], Math.min(gainRange[1], correctionDb[bestIx]!));
 
   // Estimate Q from peak bandwidth in octaves (interpolated)
   let Q = Math.SQRT2;
   {
-    const h = Math.abs(correctionDb[bestIx]) / 2;
+    const h = Math.abs(correctionDb[bestIx]!) / 2;
     if (h > 0) {
       let lo = bestIx, hi = bestIx;
-      while (lo > 0 && Math.abs(correctionDb[lo - 1]) > h) lo--;
-      while (hi < freqs.length - 1 && Math.abs(correctionDb[hi + 1]) > h) hi++;
+      while (lo > 0 && Math.abs(correctionDb[lo - 1]!) > h) lo--;
+      while (hi < freqs.length - 1 && Math.abs(correctionDb[hi + 1]!) > h) hi++;
       // Interpolate crossings for fractional positions
       let loFrac = lo, hiFrac = hi;
       if (lo > 0) {
-        const a = Math.abs(correctionDb[lo - 1]), b = Math.abs(correctionDb[lo]);
+        const a = Math.abs(correctionDb[lo - 1]!), b = Math.abs(correctionDb[lo]!);
         if (a <= h && b > h) loFrac = lo - 1 + (h - a) / (b - a);
       }
       if (hi < freqs.length - 1) {
-        const a = Math.abs(correctionDb[hi]), b = Math.abs(correctionDb[hi + 1]);
+        const a = Math.abs(correctionDb[hi]!), b = Math.abs(correctionDb[hi + 1]!);
         if (b <= h && a > h) hiFrac = hi + (a - h) / (a - b);
       }
       // Convert sample width to octave bandwidth
-      const fStep = Math.log2(freqs[1] / freqs[0]);
+      const fStep = Math.log2(freqs[1]! / freqs[0]!);
       const bwOctaves = fStep * (hiFrac - loFrac);
       if (bwOctaves > 0) {
         const bw = Math.pow(2, bwOctaves);
@@ -187,10 +189,10 @@ function initPeaking(freqs, correctionDb, spec) {
   }
   Q = Math.max(qRange[0], Math.min(qRange[1], Q));
 
-  return { type: 'PK', fc, gain, Q };
+  return { type: 'PK' as FilterType, fc, gain, Q };
 }
 
-function initLowShelf(freqs, correctionDb, spec, fs) {
+function initLowShelf(freqs: number[], correctionDb: number[], spec: ResolvedFilterSpec, fs: number): Filter {
   const { gainRange, qRange, fcRange } = spec;
 
   const minIx = Math.max(0, freqs.findIndex(f => f >= Math.max(40, fcRange[0])));
@@ -207,20 +209,20 @@ function initLowShelf(freqs, correctionDb, spec, fs) {
     if (avg > bestAvg) { bestAvg = avg; bestIx = i; }
   }
 
-  const fc = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]));
+  const fc = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]!));
   const Q  = Math.max(qRange[0], Math.min(qRange[1], 0.7));
 
   const shelfFr = biquadResponse('LSQ', fc, 1, Q, freqs, fs);
   const wtSum   = shelfFr.reduce((s, v) => s + Math.abs(v), 0);
   let gain = wtSum > 0
-    ? correctionDb.reduce((s, v, i) => s + v * Math.abs(shelfFr[i]), 0) / wtSum
+    ? correctionDb.reduce((s, v, i) => s + v * Math.abs(shelfFr[i]!), 0) / wtSum
     : 0;
   gain = Math.max(gainRange[0], Math.min(gainRange[1], gain));
 
-  return { type: 'LSQ', fc, gain, Q };
+  return { type: 'LSQ' as FilterType, fc, gain, Q };
 }
 
-function initHighShelf(freqs, correctionDb, spec, fs) {
+function initHighShelf(freqs: number[], correctionDb: number[], spec: ResolvedFilterSpec, fs: number): Filter {
   const { gainRange, qRange, fcRange } = spec;
 
   const minIx = Math.max(0, freqs.findIndex(f => f >= Math.max(40, fcRange[0])));
@@ -237,20 +239,20 @@ function initHighShelf(freqs, correctionDb, spec, fs) {
     if (avg > bestAvg) { bestAvg = avg; bestIx = i; }
   }
 
-  const fc = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]));
+  const fc = Math.max(fcRange[0], Math.min(fcRange[1], freqs[bestIx]!));
   const Q  = Math.max(qRange[0], Math.min(qRange[1], 0.7));
 
   const shelfFr = biquadResponse('HSQ', fc, 1, Q, freqs, fs);
   const wtSum   = shelfFr.reduce((s, v) => s + Math.abs(v), 0);
   let gain = wtSum > 0
-    ? correctionDb.reduce((s, v, i) => s + v * Math.abs(shelfFr[i]), 0) / wtSum
+    ? correctionDb.reduce((s, v, i) => s + v * Math.abs(shelfFr[i]!), 0) / wtSum
     : 0;
   gain = Math.max(gainRange[0], Math.min(gainRange[1], gain));
 
-  return { type: 'HSQ', fc, gain, Q };
+  return { type: 'HSQ' as FilterType, fc, gain, Q };
 }
 
-function initFilter(freqs, correctionDb, spec, fs) {
+function initFilter(freqs: number[], correctionDb: number[], spec: ResolvedFilterSpec, fs: number): Filter {
   if (spec.type === 'LSQ') return initLowShelf(freqs, correctionDb, spec, fs);
   if (spec.type === 'HSQ') return initHighShelf(freqs, correctionDb, spec, fs);
   return initPeaking(freqs, correctionDb, spec);
@@ -258,11 +260,11 @@ function initFilter(freqs, correctionDb, spec, fs) {
 
 // ─── Joint loss function ──────────────────────────────────────────────────────
 
-function totalResponse(filters, freqs, fs) {
-  const sum = new Array(freqs.length).fill(0);
+function totalResponse(filters: Filter[], freqs: number[], fs: number): number[] {
+  const sum: number[] = new Array<number>(freqs.length).fill(0);
   for (const f of filters) {
     const r = biquadResponse(f.type, f.fc, f.gain, f.Q, freqs, fs);
-    for (let i = 0; i < sum.length; i++) sum[i] += r[i];
+    for (let i = 0; i < sum.length; i++) sum[i]! += r[i]!;
   }
   return sum;
 }
@@ -271,7 +273,7 @@ function totalResponse(filters, freqs, fs) {
  * Joint loss: sqrt(MSE + sharpness penalties).
  * MSE over [20, 20000] Hz (hardcoded). Above 10 kHz: average-only.
  */
-function jointLoss(filters, freqs, correctionDb, fs) {
+function jointLoss(filters: Filter[], freqs: number[], correctionDb: number[], fs: number): number {
   const fr  = totalResponse(filters, freqs, fs);
   const tgt = correctionDb.slice();
 
@@ -282,7 +284,7 @@ function jointLoss(filters, freqs, correctionDb, fs) {
   }
   if (ix10k < freqs.length) {
     let tgtSum = 0, frSum = 0, cnt = 0;
-    for (let i = ix10k; i < tgt.length; i++) { tgtSum += tgt[i]; frSum += fr[i]; cnt++; }
+    for (let i = ix10k; i < tgt.length; i++) { tgtSum += tgt[i]!; frSum += fr[i]!; cnt++; }
     const tgtAvg = tgtSum / cnt, frAvg = frSum / cnt;
     for (let i = ix10k; i < tgt.length; i++) { tgt[i] = tgtAvg; fr[i] = frAvg; }
   }
@@ -299,7 +301,7 @@ function jointLoss(filters, freqs, correctionDb, fs) {
   let mse = 0;
   const n = maxIx - minIx + 1;
   for (let i = minIx; i <= maxIx; i++) {
-    const diff = tgt[i] - fr[i];
+    const diff = tgt[i]! - fr[i]!;
     mse += diff * diff;
   }
   mse /= n;
@@ -313,8 +315,8 @@ function jointLoss(filters, freqs, correctionDb, fs) {
 
 // ─── Parameter encoding/decoding ──────────────────────────────────────────────
 
-function encodeParams(filters) {
-  const x = [];
+function encodeParams(filters: Filter[]): number[] {
+  const x: number[] = [];
   for (const f of filters) {
     x.push(Math.log10(f.fc));
     x.push(f.Q);
@@ -323,23 +325,23 @@ function encodeParams(filters) {
   return x;
 }
 
-function decodeParams(x, specs) {
-  const filters = [];
+function decodeParams(x: number[], specs: ResolvedFilterSpec[]): Filter[] {
+  const filters: Filter[] = [];
   let idx = 0;
   for (const s of specs) {
     filters.push({
       type: s.type,
-      fc:   Math.pow(10, x[idx]),
-      Q:    x[idx + 1],
-      gain: x[idx + 2],
+      fc:   Math.pow(10, x[idx]!),
+      Q:    x[idx + 1]!,
+      gain: x[idx + 2]!,
     });
     idx += 3;
   }
   return filters;
 }
 
-function buildBounds(specs) {
-  const lo = [], hi = [];
+function buildBounds(specs: ResolvedFilterSpec[]): Bounds {
+  const lo: number[] = [], hi: number[] = [];
   for (const s of specs) {
     lo.push(Math.log10(s.fcRange[0]));  hi.push(Math.log10(s.fcRange[1]));
     lo.push(s.qRange[0]);               hi.push(s.qRange[1]);
@@ -348,10 +350,10 @@ function buildBounds(specs) {
   return { lo, hi };
 }
 
-function clipToBounds(x, bounds) {
-  const out = new Array(x.length);
+function clipToBounds(x: number[], bounds: Bounds): number[] {
+  const out: number[] = new Array<number>(x.length);
   for (let i = 0; i < x.length; i++) {
-    out[i] = Math.max(bounds.lo[i], Math.min(bounds.hi[i], x[i]));
+    out[i] = Math.max(bounds.lo[i]!, Math.min(bounds.hi[i]!, x[i]!));
   }
   return out;
 }
@@ -362,9 +364,9 @@ function clipToBounds(x, bounds) {
  * Forward finite-difference gradient matching scipy SLSQP.
  * h = sqrt(Number.EPSILON) ≈ 1.49e-8.
  */
-function finiteDiffGradient(x, f0, lossFn, bounds) {
+function finiteDiffGradient(x: number[], f0: number, lossFn: (x: number[]) => number, bounds: Bounds): number[] {
   const n = x.length;
-  const g = new Array(n);
+  const g: number[] = new Array<number>(n);
   for (let i = 0; i < n; i++) {
     const xp = x.slice();
     xp[i] = Math.min(x[i] + FD_H, bounds.hi[i]);
@@ -379,7 +381,7 @@ function finiteDiffGradient(x, f0, lossFn, bounds) {
  * L-BFGS two-loop recursion.
  * Returns search direction d = -H·g.
  */
-function lbfgsTwoLoop(g, history) {
+function lbfgsTwoLoop(g: number[], history: LbfgsEntry[]): number[] {
   const n = g.length;
   const k = history.length;
 
@@ -389,8 +391,8 @@ function lbfgsTwoLoop(g, history) {
   }
 
   const q = g.slice();
-  const alpha = new Array(k);
-  const rho   = new Array(k);
+  const alpha: number[] = new Array<number>(k);
+  const rho: number[]   = new Array<number>(k);
 
   // Precompute rho
   for (let i = 0; i < k; i++) {
@@ -421,23 +423,23 @@ function lbfgsTwoLoop(g, history) {
   return r.map(v => -v);
 }
 
-function vecDot(a, b) {
+function vecDot(a: number[], b: number[]): number {
   let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+  for (let i = 0; i < a.length; i++) s += a[i]! * b[i]!;
   return s;
 }
 
-function vecNorm(a) {
+function vecNorm(a: number[]): number {
   return Math.sqrt(vecDot(a, a));
 }
 
 /**
  * Project search direction: zero out components that would push past bounds.
  */
-function projectToBounds(d, x, bounds) {
+function projectToBounds(d: number[], x: number[], bounds: Bounds): void {
   for (let i = 0; i < d.length; i++) {
-    if (x[i] <= bounds.lo[i] && d[i] < 0) d[i] = 0;
-    if (x[i] >= bounds.hi[i] && d[i] > 0) d[i] = 0;
+    if (x[i]! <= bounds.lo[i]! && d[i]! < 0) d[i] = 0;
+    if (x[i]! >= bounds.hi[i]! && d[i]! > 0) d[i] = 0;
   }
 }
 
@@ -445,14 +447,14 @@ function projectToBounds(d, x, bounds) {
  * Armijo backtracking line search.
  * Returns x_new (clipped to bounds).
  */
-function armijoLineSearch(x, d, g, f0, lossFn, bounds) {
+function armijoLineSearch(x: number[], d: number[], g: number[], f0: number, lossFn: (x: number[]) => number, bounds: Bounds): number[] {
   const c1 = 1e-4;
   const rho = 0.5;
   const maxSteps = 20;
   const slope = vecDot(g, d);
 
   let alpha = 1.0;
-  let xTry;
+  let xTry: number[] = [];
   for (let step = 0; step < maxSteps; step++) {
     xTry = new Array(x.length);
     for (let i = 0; i < x.length; i++) {
@@ -470,20 +472,20 @@ function armijoLineSearch(x, d, g, f0, lossFn, bounds) {
 /**
  * Population standard deviation (numpy-style, ddof=0).
  */
-function populationStd(arr) {
+function populationStd(arr: number[]): number {
   if (arr.length === 0) return 0;
   let sum = 0;
-  for (let i = 0; i < arr.length; i++) sum += arr[i];
+  for (let i = 0; i < arr.length; i++) sum += arr[i]!;
   const mean = sum / arr.length;
   let ss = 0;
-  for (let i = 0; i < arr.length; i++) ss += (arr[i] - mean) * (arr[i] - mean);
+  for (let i = 0; i < arr.length; i++) ss += (arr[i]! - mean) * (arr[i]! - mean);
   return Math.sqrt(ss / arr.length);
 }
 
 /**
  * Check convergence: STD of last 8 < 0.002, or STD of last 4 < 0.001.
  */
-function converged(lossHistory) {
+function converged(lossHistory: number[]): boolean {
   const len = lossHistory.length;
   if (len < MIN_ITER) return false;  // don't converge too early
   if (len > STD_WINDOW) {
@@ -507,11 +509,11 @@ function converged(lossHistory) {
  * @param {number} fs
  * @returns {Object[]} optimized filters
  */
-function jointOptimize(initialFilters, specs, freqs, correctionDb, fs) {
+function jointOptimize(initialFilters: Filter[], specs: ResolvedFilterSpec[], freqs: number[], correctionDb: number[], fs: number): Filter[] {
   let x = encodeParams(initialFilters);
   const bounds = buildBounds(specs);
 
-  const lossFn = (params) => {
+  const lossFn = (params: number[]) => {
     const filters = decodeParams(params, specs);
     return jointLoss(filters, freqs, correctionDb, fs);
   };
@@ -520,8 +522,8 @@ function jointOptimize(initialFilters, specs, freqs, correctionDb, fs) {
   let g = finiteDiffGradient(x, loss0, lossFn, bounds);
   let bestLoss = loss0;
   let bestX = x.slice();
-  const lossHistory = [];
-  const lbfgsHistory = [];
+  const lossHistory: number[] = [];
+  const lbfgsHistory: LbfgsEntry[] = [];
 
   for (let iter = 0; iter < MAX_JOINT_ITER; iter++) {
     // Compute search direction
@@ -536,8 +538,8 @@ function jointOptimize(initialFilters, specs, freqs, correctionDb, fs) {
     const gNew = finiteDiffGradient(xNew, loss1, lossFn, bounds);
 
     // BFGS history update
-    const s = new Array(x.length);
-    const y = new Array(x.length);
+    const s: number[] = new Array<number>(x.length);
+    const y: number[] = new Array<number>(x.length);
     for (let i = 0; i < x.length; i++) {
       s[i] = xNew[i] - x[i];
       y[i] = gNew[i] - g[i];
@@ -566,7 +568,7 @@ function jointOptimize(initialFilters, specs, freqs, correctionDb, fs) {
 
 // ─── Pregain ──────────────────────────────────────────────────────────────────
 
-function computePregain(filters, freqs, fs, gainRange) {
+function computePregain(filters: Filter[], freqs: number[], fs: number, gainRange: [number, number]): number {
   if (filters.length === 0) return 0;
   const resp     = totalResponse(filters, freqs, fs);
   const maxBoost = Math.max(...resp);
@@ -593,13 +595,13 @@ function computePregain(filters, freqs, fs, gainRange) {
  *
  * @param {{freq: number, db: number}[]} measured
  * @param {{freq: number, db: number}[]} target
- * @param {Object} [constraints]
+ * @param {Object} constraints
  * @returns {{ pregain: number, filters: {type: string, fc: number, gain: number, Q: number}[] }}
  */
-export function optimize(measured, target, constraints = {}) {
-  const fs = constraints.fs || DEFAULT_FS;
-  const freqRange = constraints.freqRange || [20, 10000];
-  const specs = resolveSpecs(constraints, freqRange);
+export function optimize(measured: FreqPoint[], target: FreqPoint[], constraints: Constraints): OptimizeResult {
+  const fs = constraints.fs ?? DEFAULT_FS;
+  const freqRange: [number, number] = constraints.freqRange ?? [20, 10000];
+  const specs = resolveSpecs(constraints.filterSpecs, freqRange);
 
   // Step 2: interpolate to pipeline grid
   const measInterp   = interpolate(measured, PIPELINE_GRID);
@@ -623,7 +625,7 @@ export function optimize(measured, target, constraints = {}) {
 
   // Step 7: initialize filters (HSQ first → LSQ → PK last)
   // Sort by init_order: HSQ=2, LSQ=1, PK=0 (descending)
-  const typeOrder = { HSQ: 2, LSQ: 1, PK: 0 };
+  const typeOrder: Record<FilterType, number> = { HSQ: 2, LSQ: 1, PK: 0 };
   const initOrder = specs.map((s, i) => ({
     idx: i,
     order: typeOrder[s.type] * 100 +
@@ -633,7 +635,7 @@ export function optimize(measured, target, constraints = {}) {
   }));
   initOrder.sort((a, b) => b.order - a.order);
 
-  const initialFilters = new Array(specs.length);
+  const initialFilters: Filter[] = new Array<Filter>(specs.length);
   const remaining = correctionDb.slice();
 
   for (const { idx } of initOrder) {
@@ -648,7 +650,7 @@ export function optimize(measured, target, constraints = {}) {
   const optimized = jointOptimize(initialFilters, specs, optFreqs, correctionDb, fs);
 
   // Step 9: pregain
-  const overallGainRange = [
+  const overallGainRange: [number, number] = [
     Math.min(...specs.map(s => s.gainRange[0])),
     Math.max(...specs.map(s => s.gainRange[1])),
   ];

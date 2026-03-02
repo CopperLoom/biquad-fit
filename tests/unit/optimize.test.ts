@@ -8,10 +8,8 @@ import { interpolate } from '../../src/interpolate.js';
 // measured:    {freq, db}[] — IEM frequency response
 // target:      {freq, db}[] — target curve
 // constraints: {
-//   maxFilters: number,
-//   gainRange:  [min, max],   // dB
-//   qRange:     [min, max],
-//   freqRange:  [min, max],   // Hz
+//   filterSpecs: [{type?, gainRange, qRange?, fcRange?}],  // per-filter specs (required)
+//   freqRange:   [min, max],                               // Hz (default fcRange for PK)
 // }
 //
 // Returns: { pregain: number, filters: [{type, fc, gain, Q}] }
@@ -35,16 +33,22 @@ function bumpFR(centerFreq, heightDb, widthOctaves = 1) {
 }
 
 const STANDARD = {
-  maxFilters: 5,
-  gainRange: [-12, 12],
-  qRange: [0.5, 10],
+  filterSpecs: [
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+  ],
   freqRange: [20, 10000],
 };
 
 const RESTRICTED = {
-  maxFilters: 3,
-  gainRange: [-6, 6],
-  qRange: [1, 5],
+  filterSpecs: [
+    { type: 'PK', gainRange: [-6, 6], qRange: [1, 5] },
+    { type: 'PK', gainRange: [-6, 6], qRange: [1, 5] },
+    { type: 'PK', gainRange: [-6, 6], qRange: [1, 5] },
+  ],
   freqRange: [20, 10000],
 };
 
@@ -87,45 +91,63 @@ describe('optimize: return structure', () => {
 
 describe('optimize: constraint enforcement', () => {
 
-  test('filter count does not exceed maxFilters', () => {
-    const result = optimize(bumpFR(1000, 6), flatFR(), { ...STANDARD, maxFilters: 3 });
-    expect(result.filters.length).toBeLessThanOrEqual(3);
+  test('filter count matches filterSpecs length (3)', () => {
+    const constraints = {
+      filterSpecs: [
+        { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+      ],
+      freqRange: [20, 10000],
+    };
+    const result = optimize(bumpFR(1000, 6), flatFR(), constraints);
+    expect(result.filters.length).toBe(3);
   });
 
-  test('filter count does not exceed maxFilters=1', () => {
-    const result = optimize(bumpFR(1000, 6), flatFR(), { ...STANDARD, maxFilters: 1 });
-    expect(result.filters.length).toBeLessThanOrEqual(1);
+  test('filter count matches filterSpecs length (1)', () => {
+    const constraints = {
+      filterSpecs: [
+        { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+      ],
+      freqRange: [20, 10000],
+    };
+    const result = optimize(bumpFR(1000, 6), flatFR(), constraints);
+    expect(result.filters.length).toBe(1);
   });
 
   test('all filter gains within gainRange', () => {
     const result = optimize(bumpFR(500, 10), flatFR(), STANDARD);
-    result.filters.forEach(f => {
-      expect(f.gain).toBeGreaterThanOrEqual(STANDARD.gainRange[0]);
-      expect(f.gain).toBeLessThanOrEqual(STANDARD.gainRange[1]);
+    result.filters.forEach((f, i) => {
+      const gainRange = STANDARD.filterSpecs[i].gainRange;
+      expect(f.gain).toBeGreaterThanOrEqual(gainRange[0]);
+      expect(f.gain).toBeLessThanOrEqual(gainRange[1]);
     });
   });
 
   test('all filter gains within restricted gainRange', () => {
     const result = optimize(bumpFR(500, 10), flatFR(), RESTRICTED);
-    result.filters.forEach(f => {
-      expect(f.gain).toBeGreaterThanOrEqual(RESTRICTED.gainRange[0]);
-      expect(f.gain).toBeLessThanOrEqual(RESTRICTED.gainRange[1]);
+    result.filters.forEach((f, i) => {
+      const gainRange = RESTRICTED.filterSpecs[i].gainRange;
+      expect(f.gain).toBeGreaterThanOrEqual(gainRange[0]);
+      expect(f.gain).toBeLessThanOrEqual(gainRange[1]);
     });
   });
 
   test('all Q values within qRange', () => {
     const result = optimize(bumpFR(1000, 6), flatFR(), STANDARD);
-    result.filters.forEach(f => {
-      expect(f.Q).toBeGreaterThanOrEqual(STANDARD.qRange[0]);
-      expect(f.Q).toBeLessThanOrEqual(STANDARD.qRange[1]);
+    result.filters.forEach((f, i) => {
+      const qRange = STANDARD.filterSpecs[i].qRange;
+      expect(f.Q).toBeGreaterThanOrEqual(qRange[0]);
+      expect(f.Q).toBeLessThanOrEqual(qRange[1]);
     });
   });
 
   test('all Q values within restricted qRange', () => {
     const result = optimize(bumpFR(1000, 6), flatFR(), RESTRICTED);
-    result.filters.forEach(f => {
-      expect(f.Q).toBeGreaterThanOrEqual(RESTRICTED.qRange[0]);
-      expect(f.Q).toBeLessThanOrEqual(RESTRICTED.qRange[1]);
+    result.filters.forEach((f, i) => {
+      const qRange = RESTRICTED.filterSpecs[i].qRange;
+      expect(f.Q).toBeGreaterThanOrEqual(qRange[0]);
+      expect(f.Q).toBeLessThanOrEqual(qRange[1]);
     });
   });
 
@@ -138,7 +160,17 @@ describe('optimize: constraint enforcement', () => {
   });
 
   test('gainRange [0, 0]: all filter gains are 0', () => {
-    const result = optimize(bumpFR(1000, 6), flatFR(), { ...STANDARD, gainRange: [0, 0] });
+    const constraints = {
+      filterSpecs: [
+        { type: 'PK', gainRange: [0, 0], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [0, 0], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [0, 0], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [0, 0], qRange: [0.5, 10] },
+        { type: 'PK', gainRange: [0, 0], qRange: [0.5, 10] },
+      ],
+      freqRange: [20, 10000],
+    };
+    const result = optimize(bumpFR(1000, 6), flatFR(), constraints);
     result.filters.forEach(f => expect(f.gain).toBeCloseTo(0, 6));
   });
 
@@ -201,11 +233,6 @@ describe('optimize: filterSpecs API', () => {
     expect(hasShelf).toBe(true);
   });
 
-  test('old API still works (all-PK, backward compat)', () => {
-    const result = optimize(bumpFR(1000, 6), flatFR(), STANDARD);
-    expect(result.filters.length).toBeGreaterThan(0);
-    result.filters.forEach(f => expect(f.type).toBe('PK'));
-  });
 
 });
 

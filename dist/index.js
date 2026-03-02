@@ -1,4 +1,4 @@
-// src/biquadResponse.js
+// src/biquadResponse.ts
 var DEFAULT_FS = 44100;
 function biquadCoeffs(type, fc, gain, Q, fs) {
   const A = Math.pow(10, gain / 40);
@@ -6,7 +6,7 @@ function biquadCoeffs(type, fc, gain, Q, fs) {
   const cosW0 = Math.cos(w0);
   const sinW0 = Math.sin(w0);
   const alpha = sinW0 / (2 * Q);
-  let b0, b1, b2, a0, a1, a2;
+  let b0 = 0, b1 = 0, b2 = 0, a0 = 0, a1 = 0, a2 = 0;
   if (type === "PK") {
     a0 = 1 + alpha / A;
     b0 = (1 + alpha * A) / a0;
@@ -48,7 +48,7 @@ function biquadResponse(type, fc, gain, Q, frequencies, fs = DEFAULT_FS) {
   return frequencies.map((f) => evalMagnitude(c, f, fs));
 }
 
-// src/interpolate.js
+// src/interpolate.ts
 var DEFAULTS = {
   step: 1.01,
   fMin: 20,
@@ -89,7 +89,7 @@ function interpolate(fr, options = {}) {
   });
 }
 
-// src/compensate.js
+// src/compensate.ts
 function compensate(measured, target, options = {}) {
   const m = interpolate(measured, options);
   const t = interpolate(target, options);
@@ -99,7 +99,7 @@ function compensate(measured, target, options = {}) {
   }));
 }
 
-// src/smooth.js
+// src/smooth.ts
 var DEFAULTS2 = {
   windowOctaves: 1 / 3
 };
@@ -246,7 +246,7 @@ function smooth(fr, options = {}) {
   }));
 }
 
-// src/equalize.js
+// src/equalize.ts
 var TREBLE_F_LOWER = 6e3;
 var TREBLE_F_UPPER = 8e3;
 var NORMAL_SMOOTH_OCTAVES = 1 / 12;
@@ -456,12 +456,13 @@ function equalize(error) {
   return reSmoothed;
 }
 
-// src/optimize.js
+// src/optimize.ts
 var DEFAULT_FS2 = 44100;
 var PIPELINE_GRID = { step: 1.01, fMin: 20, fMax: 2e4 };
 var OPTIMIZER_GRID = { step: 1.02, fMin: 20, fMax: 2e4 };
 var SHELF_Q_RANGE = [0.4, 0.7];
 var SHELF_FC_RANGE = [20, 1e4];
+var DEFAULT_PK_Q_RANGE = [0.18, 6];
 var IX_10K_CUTOFF = 1e4;
 var LOSS_FREQ_MIN = 20;
 var LOSS_FREQ_MAX = 2e4;
@@ -472,22 +473,14 @@ var MAX_JOINT_ITER = 150;
 var PREAMP_HEADROOM = 0.2;
 var LBFGS_MEMORY = 10;
 var FD_H = Math.sqrt(Number.EPSILON);
-function resolveSpecs(constraints, defaultFreqRange) {
-  const {
-    filterSpecs,
-    maxFilters = 5,
-    gainRange = [-12, 12],
-    qRange = [0.18, 6]
-    // AutoEQ defaults: 0.18248 (5-oct max bw), 6.0
-  } = constraints;
-  const raw = filterSpecs ? filterSpecs : Array.from({ length: maxFilters }, () => ({ type: "PK", gainRange, qRange }));
-  return raw.map((s) => {
-    const type = s.type || "PK";
+function resolveSpecs(filterSpecs, defaultFreqRange) {
+  return filterSpecs.map((s) => {
+    const type = s.type ?? "PK";
     const isShelf = type === "LSQ" || type === "HSQ";
     return {
       type,
-      gainRange: s.gainRange ?? gainRange,
-      qRange: s.qRange ?? (isShelf ? SHELF_Q_RANGE : qRange),
+      gainRange: s.gainRange,
+      qRange: s.qRange ?? (isShelf ? SHELF_Q_RANGE : DEFAULT_PK_Q_RANGE),
       fcRange: s.fcRange ?? (isShelf ? SHELF_FC_RANGE : defaultFreqRange)
     };
   });
@@ -811,7 +804,7 @@ function armijoLineSearch(x, d, g, f0, lossFn, bounds) {
   const maxSteps = 20;
   const slope = vecDot(g, d);
   let alpha = 1;
-  let xTry;
+  let xTry = [];
   for (let step = 0; step < maxSteps; step++) {
     xTry = new Array(x.length);
     for (let i = 0; i < x.length; i++) {
@@ -894,10 +887,10 @@ function computePregain(filters, freqs, fs, gainRange) {
   const pregain = -(maxBoost + PREAMP_HEADROOM);
   return Math.max(gainRange[0], Math.min(gainRange[1], pregain));
 }
-function optimize(measured, target, constraints = {}) {
-  const fs = constraints.fs || DEFAULT_FS2;
-  const freqRange = constraints.freqRange || [20, 1e4];
-  const specs = resolveSpecs(constraints, freqRange);
+function optimize(measured, target, constraints) {
+  const fs = constraints.fs ?? DEFAULT_FS2;
+  const freqRange = constraints.freqRange ?? [20, 1e4];
+  const specs = resolveSpecs(constraints.filterSpecs, freqRange);
   const measInterp = interpolate(measured, PIPELINE_GRID);
   const targetInterp = interpolate(target, PIPELINE_GRID);
   const ix1k = measInterp.findIndex((pt) => pt.freq >= 1e3);
@@ -939,7 +932,7 @@ function optimize(measured, target, constraints = {}) {
   };
 }
 
-// src/applyFilters.js
+// src/applyFilters.ts
 function applyFilters(fr, filters, pregain, fs = 44100) {
   const frequencies = fr.map((pt) => pt.freq);
   const filterSum = new Array(fr.length).fill(0);

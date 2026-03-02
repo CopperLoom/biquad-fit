@@ -40,10 +40,14 @@ const target = [
 ];
 
 const { pregain, filters } = optimize(measured, target, {
-  maxFilters: 5,
-  gainRange:  [-12, 12],
-  qRange:     [0.5, 10],
-  freqRange:  [20, 10000],
+  filterSpecs: [
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+    { type: 'PK', gainRange: [-12, 12], qRange: [0.5, 10] },
+  ],
+  freqRange: [20, 10000],
 });
 
 console.log(pregain);  // e.g. -1.5  (dB, apply before filters)
@@ -69,18 +73,15 @@ The main entry point. Runs the full pipeline and returns optimal filter paramete
 |---|---|---|
 | `measured` | `{freq, db}[]` | Measured frequency response |
 | `target` | `{freq, db}[]` | Target curve |
-| `constraints.filterSpecs` | `{type, gainRange?, qRange?, fcRange?}[]` | Per-filter specs (advanced) |
-| `constraints.maxFilters` | `number` | Max number of filters (default: 5) |
-| `constraints.gainRange` | `[min, max]` | Gain bounds in dB (default: [-12, 12]) |
-| `constraints.qRange` | `[min, max]` | Q bounds (default: [0.5, 10]) |
-| `constraints.freqRange` | `[min, max]` | Frequency bounds in Hz (default: [20, 10000]) |
+| `constraints.filterSpecs` | `{type?, gainRange, qRange?, fcRange?}[]` | Per-filter specs. Required. |
+| `constraints.freqRange` | `[min, max]` | Default frequency bounds for PK filters in Hz (default: [20, 10000]) |
 | `constraints.fs` | `number` | Sample rate in Hz (default: 44100) |
 
 Returns `{ pregain: number, filters: {type, fc, gain, Q}[] }`.
 
 Filter types: `'PK'` (peaking), `'LSQ'` (low shelf), `'HSQ'` (high shelf).
 
-**filterSpecs API (v1.0+):** For advanced use, pass `constraints.filterSpecs` to specify per-filter bounds:
+**Mixed filter types:** Pass `LSQ` and `HSQ` specs to include shelving filters:
 
 ```js
 const { pregain, filters } = optimize(measured, target, {

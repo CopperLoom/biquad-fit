@@ -39,12 +39,14 @@
   ],
   "scripts": {
     "prepare": "npm run build",
-    "build": "esbuild src/index.js --bundle --format=esm --platform=neutral --outfile=dist/index.js && esbuild src/index.js --bundle --format=cjs --platform=neutral --outfile=dist/index.cjs && tsc",
+    "build": "esbuild src/index.ts --bundle --format=esm --platform=neutral --outfile=dist/index.js && esbuild src/index.ts --bundle --format=cjs --platform=neutral --outfile=dist/index.cjs && tsc",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
     "esbuild": "^0.27.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },

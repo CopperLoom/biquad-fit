@@ -1,12 +1,11 @@
 /**
- * Compute biquad filter gain in dB at each frequency in the input array.
+ * biquadResponse.ts
  *
- * @param {'PK'|'LSQ'|'HSQ'} type
- * @param {number}   fc          - center / shelf frequency in Hz
- * @param {number}   gain        - gain in dB
- * @param {number}   Q           - quality factor
- * @param {number[]} frequencies - array of frequencies in Hz
- * @param {number}   [fs=44100]  - sample rate in Hz
- * @returns {number[]} gain in dB at each frequency
+ * Pure-JS biquad filter evaluator. Computes gain in dB at a set of
+ * frequencies for a single PK / LSQ / HSQ filter.
+ *
+ * Coefficient formulas: Audio EQ Cookbook (W3C)
+ * Magnitude formula:    phi = 4*sin²(w/2) identity (same as AutoEq)
  */
-export function biquadResponse(type: "PK" | "LSQ" | "HSQ", fc: number, gain: number, Q: number, frequencies: number[], fs?: number): number[];
+import type { FilterType } from './types.js';
+export declare function biquadResponse(type: FilterType, fc: number, gain: number, Q: number, frequencies: number[], fs?: number): number[];

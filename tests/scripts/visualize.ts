@@ -63,9 +63,11 @@ const CONSTRAINT_SETS = {
     gainRange: [-12, 12],
   },
   restricted: {
-    maxFilters: 3,
-    gainRange:  [-6, 6],
-    qRange:     [1.0, 5.0],
+    filterSpecs: [
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+      { type: 'PK', gainRange: [-6, 6], qRange: [1.0, 5.0] },
+    ],
     freqRange:  [20, 10000],
   },
   qudelix_10: {

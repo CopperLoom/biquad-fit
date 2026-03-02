@@ -1,5 +1,5 @@
 /**
- * biquadResponse.js
+ * biquadResponse.ts
  *
  * Pure-JS biquad filter evaluator. Computes gain in dB at a set of
  * frequencies for a single PK / LSQ / HSQ filter.
@@ -8,27 +8,20 @@
  * Magnitude formula:    phi = 4*sin²(w/2) identity (same as AutoEq)
  */
 
+import type { FilterType } from './types.js';
+
 const DEFAULT_FS = 44100;
 
-/**
- * Compute normalized biquad coefficients {b0, b1, b2, a1, a2}
- * for the given filter type. a0 is always 1.0 (normalized out).
- *
- * @param {'PK'|'LSQ'|'HSQ'} type
- * @param {number} fc   - center / shelf frequency in Hz
- * @param {number} gain - gain in dB
- * @param {number} Q    - quality factor
- * @param {number} fs   - sample rate in Hz
- * @returns {{b0: number, b1: number, b2: number, a1: number, a2: number}}
- */
-function biquadCoeffs(type, fc, gain, Q, fs) {
+interface BiquadCoeffs { b0: number; b1: number; b2: number; a1: number; a2: number; }
+
+function biquadCoeffs(type: FilterType, fc: number, gain: number, Q: number, fs: number): BiquadCoeffs {
   const A  = Math.pow(10, gain / 40);
   const w0 = 2 * Math.PI * fc / fs;
   const cosW0 = Math.cos(w0);
   const sinW0 = Math.sin(w0);
   const alpha = sinW0 / (2 * Q);
 
-  let b0, b1, b2, a0, a1, a2;
+  let b0 = 0, b1 = 0, b2 = 0, a0 = 0, a1 = 0, a2 = 0;
 
   if (type === 'PK') {
     a0 =  1 + alpha / A;
@@ -63,22 +56,7 @@ function biquadCoeffs(type, fc, gain, Q, fs) {
   return { b0, b1, b2, a1, a2 };
 }
 
-/**
- * Evaluate a biquad filter's gain in dB at a single frequency.
- *
- * Uses the real-valued squared-magnitude identity:
- *   phi = 4 * sin²(w/2)
- *   |H|² = num / den
- *   where num and den are quadratics in phi.
- *
- * This avoids complex arithmetic and matches AutoEq's implementation exactly.
- *
- * @param {{b0,b1,b2,a1,a2}} c - normalized coefficients (a0 = 1)
- * @param {number} f  - frequency in Hz
- * @param {number} fs - sample rate in Hz
- * @returns {number} gain in dB
- */
-function evalMagnitude(c, f, fs) {
+function evalMagnitude(c: BiquadCoeffs, f: number, fs: number): number {
   const { b0, b1, b2, a1, a2 } = c;
   const w   = 2 * Math.PI * f / fs;
   const phi = 4 * Math.sin(w / 2) ** 2;
@@ -89,18 +67,7 @@ function evalMagnitude(c, f, fs) {
   return 10 * Math.log10(num / den);
 }
 
-/**
- * Compute biquad filter gain in dB at each frequency in the input array.
- *
- * @param {'PK'|'LSQ'|'HSQ'} type
- * @param {number}   fc          - center / shelf frequency in Hz
- * @param {number}   gain        - gain in dB
- * @param {number}   Q           - quality factor
- * @param {number[]} frequencies - array of frequencies in Hz
- * @param {number}   [fs=44100]  - sample rate in Hz
- * @returns {number[]} gain in dB at each frequency
- */
-export function biquadResponse(type, fc, gain, Q, frequencies, fs = DEFAULT_FS) {
+export function biquadResponse(type: FilterType, fc: number, gain: number, Q: number, frequencies: number[], fs = DEFAULT_FS): number[] {
   const c = biquadCoeffs(type, fc, gain, Q, fs);
   return frequencies.map(f => evalMagnitude(c, f, fs));
 }

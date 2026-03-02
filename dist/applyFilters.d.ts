@@ -1,21 +1,8 @@
 /**
- * Apply parametric EQ filters and pregain to a frequency response.
+ * applyFilters.ts
  *
- * @param {{freq: number, db: number}[]} fr       - input frequency response
- * @param {{type: string, fc: number, gain: number, Q: number}[]} filters
- * @param {number} pregain                         - dB shift applied to entire curve
- * @param {number} [fs=44100]                      - sample rate in Hz
- * @returns {{freq: number, db: number}[]}         - corrected frequency response
+ * Applies a list of biquad filters and a pregain to a frequency response curve.
+ * Returns a new FR array — does not mutate the input.
  */
-export function applyFilters(fr: {
-    freq: number;
-    db: number;
-}[], filters: {
-    type: string;
-    fc: number;
-    gain: number;
-    Q: number;
-}[], pregain: number, fs?: number): {
-    freq: number;
-    db: number;
-}[];
+import type { FreqPoint, Filter } from './types.js';
+export declare function applyFilters(fr: FreqPoint[], filters: Filter[], pregain: number, fs?: number): FreqPoint[];
