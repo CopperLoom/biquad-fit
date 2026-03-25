@@ -928,7 +928,8 @@ function optimize(measured, target, constraints) {
   const ix1k = measInterp.findIndex((pt) => pt.freq >= 1e3);
   const offset1k = measInterp[ix1k].db;
   const measCentered = measInterp.map((pt) => ({ freq: pt.freq, db: pt.db - offset1k }));
-  const error = compensate(measCentered, targetInterp);
+  const targetNormalized = targetInterp.map((pt) => ({ freq: pt.freq, db: pt.db - targetInterp[ix1k].db }));
+  const error = compensate(measCentered, targetNormalized);
   const equalizationPipeline = equalize(error);
   const eqOnOptGrid = interpolate(equalizationPipeline, OPTIMIZER_GRID);
   const optFreqs = eqOnOptGrid.map((pt) => pt.freq);

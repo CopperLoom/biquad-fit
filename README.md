@@ -151,7 +151,7 @@ The optimizer algorithms differ:
 
 ## Status
 
-v2.0.0 stable. All 273 tests passing (93 unit + 180 integration). Full TypeScript source with strict-mode types. Full support for mixed filter types (peaking, low shelf, high shelf) and per-filter constraints via the `filterSpecs` API.
+v2.1.0 stable. All 273 tests passing (93 unit + 180 integration). Full TypeScript source with strict-mode types. Full support for mixed filter types (peaking, low shelf, high shelf) and per-filter constraints via the `filterSpecs` API.
 
 ---
 

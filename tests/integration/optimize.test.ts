@@ -28,7 +28,10 @@ function centerAt1k(points) {
 // Matches the convention in generate_golden.py and compare.js.
 function computeRMSE(frCentered, target, filters) {
   const frInterp  = interpolate(frCentered);
-  const tgtInterp = interpolate(target);
+  const tgtRaw    = interpolate(target);
+  const ix1k      = tgtRaw.findIndex(p => p.freq >= 1000);
+  const tgt1k     = tgtRaw[ix1k].db;
+  const tgtInterp = tgtRaw.map(pt => ({ freq: pt.freq, db: pt.db - tgt1k }));
   const corrected = applyFilters(frInterp, filters, 0);
   return Math.sqrt(
     corrected.reduce((s, pt, i) => s + (pt.db - tgtInterp[i].db) ** 2, 0) / corrected.length

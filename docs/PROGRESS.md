@@ -239,4 +239,13 @@ node tests/scripts/visualize.js origin_s diffuse_field qudelix_10
 node tests/scripts/visualize.js -h
 ```
 
-## Next: npm publish + v1.1 simplification pass
+## v2.1.0 — Target normalization fix ✅
+
+**Completed:** 2026-03-26
+
+**What was done:**
+- Fixed pipeline deviation from AutoEQ: `optimize()` now normalizes the target at 1 kHz (subtracts `target[1kHz]` from all target points) before computing the error, matching AutoEQ's `target.center()` call inside `fr.compensate()`
+- Updated integration test RMSE computation to compare against the normalized target, consistent with AutoEQ's golden-file convention
+- All 273 tests pass
+
+**Impact:** Negligible for 5 of 6 target fixtures (target[1kHz] < 0.1 dB). Corrects a 1.922 dB systematic offset for the `v_shaped` target fixture.

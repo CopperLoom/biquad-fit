@@ -615,8 +615,11 @@ export function optimize(measured: FreqPoint[], target: FreqPoint[], constraints
   const offset1k = measInterp[ix1k].db;
   const measCentered = measInterp.map(pt => ({ freq: pt.freq, db: pt.db - offset1k }));
 
+  // Step 3b: normalize target at 1 kHz (matching AutoEQ's target.center() inside fr.compensate())
+  const targetNormalized = targetInterp.map(pt => ({ freq: pt.freq, db: pt.db - targetInterp[ix1k].db }));
+
   // Step 4: compute error (compensate on the same grid)
-  const error = compensate(measCentered, targetInterp);
+  const error = compensate(measCentered, targetNormalized);
 
   // Step 5: equalize (slope-limited, gain-capped correction curve)
   const equalizationPipeline = equalize(error);

@@ -388,6 +388,7 @@ function optimize(measured, target, constraints):
     1. Resolve filterSpecs
     2. Interpolate measured and target to log grid, step=1.01 (pipeline grid)
     3. fr.center() — subtract value at 1 kHz from measured
+    3b. target.center() — subtract value at 1 kHz from target (done inside AutoEQ's fr.compensate())
     4. fr.error = measured.db - target.db (element-wise, on 1.01 grid)
     5. equalization = equalize(fr.error, freqs_1_01)
        [slope-limited, gain-capped inverse of smoothed error — Section 2.2]
